@@ -476,15 +476,16 @@ class AreaDetector(NDArrayDriver):
         return self._plugins_of_type(plugins.ImagePlugin)
 
     def __init__(self, prefix, cam='cam1:',
-                 images=['image1:', ],
-                 rois=['ROI1:', 'ROI2:', 'ROI3:', 'ROI4:'],
-                 files=['TIFF1:', 'netCDF1:', 'JPEG1:', 'Nexus1:',
-                        'HDF1:', 'Magick1:', ],
-                 procs=['Proc1:', ],
-                 stats=['Stats1:', 'Stats2:', 'Stats3:', 'Stats4:', 'Stats5:', ],
-                 ccs=['CC1:', 'CC2:', ],
-                 trans=['Trans1:', ],
-                 over=[['Over1:', 1, 8], ],
+                 images=('image1:', ),
+                 rois=('ROI1:', 'ROI2:', 'ROI3:', 'ROI4:'),
+                 files=('TIFF1:', 'netCDF1:', 'JPEG1:', 'Nexus1:',
+                        'HDF1:', 'Magick1:', ),
+                 procs=('Proc1:', ),
+                 stats=('Stats1:', 'Stats2:', 'Stats3:', 'Stats4:',
+                        'Stats5:', ),
+                 ccs=('CC1:', 'CC2:', ),
+                 trans=('Trans1:', ),
+                 over=(('Over1:', 1, 8), ),
                  **kwargs):
 
         self._base_prefix = prefix
