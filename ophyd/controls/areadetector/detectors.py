@@ -426,7 +426,8 @@ class AreaDetector(NDArrayDriver):
     size = ADSignalGroup(_size_x, _size_y)
 
     status_message = ADSignal('StatusMessage_RBV', rw=False, string=True)
-    string_from_server = ADSignal('StringFromServer_RBV', rw=False, string=True)
+    string_from_server = ADSignal('StringFromServer_RBV', rw=False,
+                                  string=True)
     string_to_server = ADSignal('StringToServer_RBV', rw=False, string=True)
     temperature = ADSignal('Temperature', has_rbv=True)
     temperature_actual = ADSignal('TemperatureActual')
@@ -546,7 +547,8 @@ class AreaDetector(NDArrayDriver):
             else:
                 return images
         finally:
-            logger.debug('%s: Putting detector back into original state' % self)
+            logger.debug(
+                '%s: Putting detector back into original state' % self)
             self.image_mode = start_mode
             self.acquire.put(start_acquire, wait=False)
 
@@ -1057,7 +1059,8 @@ def create_detector_stub(db_file, macros=None,
         if m:
             start_caps = m.groups()[0]
             pv = pv[len(start_caps):]
-            pv = ''.join([start_caps[:-1].lower(), '_', start_caps[-1].lower(), pv])
+            pv = ''.join([start_caps[:-1].lower(), '_',
+                          start_caps[-1].lower(), pv])
 
         # Get all groups of caps or lower-case
         # e.g., AAAbbbCCC -> 'AAA', 'bbb, 'CCC'
