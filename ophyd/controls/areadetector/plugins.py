@@ -16,8 +16,7 @@ import numpy as np
 
 import epics
 
-from .detectors import (ADBase, NDArrayDriver,
-                        ADSignal, ADSignalGroup)
+from .base import ADBase, NDArrayDriver, ADSignal, ADSignalGroup
 from ...utils import enum
 
 
@@ -36,7 +35,6 @@ __all__ = ['ColorConvPlugin',
            'StatsPlugin',
            'TIFFPlugin',
            'TransformPlugin',
-
            'get_areadetector_plugin',
            'plugin_from_pvname',
            ]
