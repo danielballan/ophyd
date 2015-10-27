@@ -1,8 +1,9 @@
 import inspect
 import sys
-from ..signal import (Signal, EpicsSignal, SignalGroup)
+import re
+from ..signal import (Signal as osig, EpicsSignal as oesig,
+                      SignalGroup as osiggrp)
 from . import docs
-
 
 
 def name_from_pv(pv):
@@ -10,6 +11,7 @@ def name_from_pv(pv):
     name = pv.lower().rstrip(':')
     name = name.replace(':', '.')
     return name
+
 
 def lookup_doc(cls_, pv):
     '''Lookup documentation extracted from the areadetector html docs
@@ -133,9 +135,9 @@ class ADSignal(object):
             else:
                 write = None
 
-            signal = EpicsSignal(read_, write_pv=write,
-                                 name=full_name,
-                                 **self.kwargs)
+            signal = oesig(read_, write_pv=write,
+                           name=full_name,
+                           **self.kwargs)
 
             obj._ad_signals[pv] = signal
 
@@ -161,7 +163,7 @@ def ADSignalGroup(*props, **kwargs):
         try:
             return self._ad_signals[key]
         except KeyError:
-            sg = SignalGroup(**kwargs)
+            sg = osiggrp(**kwargs)
             for signal in signals:
                 sg.add_signal(signal)
 
@@ -278,7 +280,7 @@ class ADBase:
                      if not attr.startswith('_') and attr != 'signals']
 
             self.__sig_dict = dict((name, value) for name, value in attrs
-                                   if isinstance(value, (Signal, SignalGroup)))
+                                   if isinstance(value, (osig, osiggrp)))
 
         return self.__sig_dict
 
