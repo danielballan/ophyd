@@ -215,8 +215,8 @@ class ADBase:
             Function to call when matches are found Defaults to a function that
             prints matches to f
         f : file-like, optional
-            File-like object that the default match function prints to (Defaults
-            to sys.stdout)
+            File-like object that the default match function prints to
+            (Defaults to sys.stdout)
         '''
         # TODO: Some docstrings change based on the detector type,
         #       showing different options than are available in
