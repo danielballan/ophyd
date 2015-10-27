@@ -5,6 +5,11 @@ from . import docs
 
 
 
+def name_from_pv(pv):
+    '''Create a signal's ophyd name based on the PV'''
+    name = pv.lower().rstrip(':')
+    name = name.replace(':', '.')
+    return name
 
 def lookup_doc(cls_, pv):
     '''Lookup documentation extracted from the areadetector html docs
@@ -147,12 +152,6 @@ class ADSignal(object):
     def __set__(self, obj, value):
         signal = self.check_exists(obj)
         signal.value = value
-
-def name_from_pv(pv):
-    '''Create a signal's ophyd name based on the PV'''
-    name = pv.lower().rstrip(':')
-    name = name.replace(':', '.')
-    return name
 
 
 def ADSignalGroup(*props, **kwargs):
