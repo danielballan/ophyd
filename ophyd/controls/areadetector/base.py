@@ -1,9 +1,122 @@
 import inspect
+from weakref import WeakKeyDictionary
+from inspect import Parameter, Signature
 import sys
 import re
+import epics
 from ..signal import (Signal as osig, EpicsSignal as oesig,
                       SignalGroup as osiggrp)
 from . import docs
+
+
+class SignalR:
+    "A descriptor representing a read-only PV"
+    def __init__(self, pv_template):
+        self.pv_template = pv_template
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return
+        # Return PV value
+        pv_name = self.pv_template.format(base_name=instance.base_name)
+        if pv_name not in instance._pvs:
+            # This PV is being read for the first time. Connect.
+            instance._pvs[pv_name] = epics.PV(pv_name)
+        return instance._pvs[pv_name].get()
+
+
+class SignalRW(SignalR):
+    "A descriptor respresenting an writable PV"
+    def __set__(self, instance, value):
+        pv_name = pv_template.format(instance.base_name)
+        if pv_name not in instance._pvs:
+            # This PV is being written to for the first time. Connect.
+            instance._pvs[pv_name] = epics.PV(pv_name)
+        instance._pvs[pv_name].put(value)
+
+
+class SignalsAccessor:
+    "a basic accessor object to put signals in a scope"
+    def __init__(self, parent):
+        self.parent = parent
+
+    def __getattr__(self, name):
+        getattr(self.parent, name)  # make sure it is created
+        template = self.parent._templates[name]
+        pv_name = template.format(base_name=self.parent.base_name)
+        return self.parent._pvs[pv_name]
+
+
+class SignalMeta(type):
+    "Creates attributes for signals by inspecting class definition"
+    def __new__(cls, name, bases, clsdict):
+        clsobj = super().__new__(cls, name, bases, clsdict)
+        # private dict of signal names and signal objects
+        sig_dict = {k: v for k, v in clsdict.items() if isinstance(v, SignalR)}
+        clsobj._templates = {k: v.pv_template for k, v in sig_dict.items()}
+        clsobj._signals_dict = sig_dict
+        # design a default signature for the set method
+        writable_signals = [k for k, v in clsobj._signals_dict.items()
+                            if isinstance(v, SignalRW)]
+        signature = Signature([Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
+                              for name in writable_signals])
+        clsobj._set_signature = signature
+        # public accessor of signal objects
+        clsobj._pvs = {}
+        return clsobj
+
+
+class Base(metaclass=SignalMeta):
+    "Base class for hardware objects that can be read but not set"
+
+    def __init__(self, base_name, read_signals=None):
+        self.base_name = base_name
+        self.signals = SignalsAccessor(self)
+        if read_signals is None:
+            self.read_signals = list(self._signals_dict.keys())
+
+    def read(self):
+        # map names ("data keys") to actual values
+        return {name: getattr(self, name) for name in self.read_signals}
+
+    def describe(self):
+        return {name: {'source': getattr(self.signals, name).pvname}
+                for name in self.read_signals}
+
+    def stop(self):
+        "to be defined by subclass"
+        pass
+
+    def trigger(self):
+        "to be defined by subclass"
+        pass
+
+
+class SettableBase(Base):
+    """
+    Base class for hardware objects with some writable signals
+
+    The entire purpose of this base class is provide an auto-generated set
+    method with a signature that provides one argument per writable signal.
+
+    If you want a different signature, or you want to control the order, you
+    need to write you own set, and this subclass adds no utility.
+    """
+    def set(self, *args, **kwargs):
+        bound = self._set_signature.bind(*args, **kwargs)
+        status_objs = []
+        for name, val in bound.arguments.items():
+            sig = getattr(self.signals, name)
+            status_objs.append(sig.set(val))
+        return status_objs
+
+
+class Motor(Base):
+    """
+    motor = Motor()
+    RE(AbsScan(motor, 1, 5 ,5))
+    """
+    position = SignalRW('readPV1')
 
 
 def name_from_pv(pv):
