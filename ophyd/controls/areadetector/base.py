@@ -1,3 +1,4 @@
+import functools
 import inspect
 from weakref import WeakKeyDictionary
 from inspect import Parameter, Signature
@@ -6,45 +7,93 @@ import re
 import epics
 from ..signal import (Signal as osig, EpicsSignal as oesig,
                       SignalGroup as osiggrp)
+from ...utils.epics_pvs import raise_if_disconnected
+from ...utils.errors import DisconnectedError
 from . import docs
 
 
-class SignalR:
-    "A descriptor representing a read-only PV"
-    def __init__(self, pv_template):
+def raise_if_disconnected(fcn):
+    '''Decorator to catch attempted access to disconnected EPICS channels.'''
+    # differs from implementation in utils.py because it gives pvname, not
+    # object name
+    @functools.wraps(fcn)
+    def wrapper(self, *args, **kwargs):
+        if self.connected:
+            return fcn(self, *args, **kwargs)
+        else:
+            raise DisconnectedError('{} is not connected'.format(
+                self.pv.pvname))
+    return wrapper
+
+
+class EpicsSignalLite:
+    """A simplified EpicsSignal for demo purposes only
+    
+    This is a wrapper around a single, read-only epics.PV.
+    """
+    def __init__(self, pv_name, *args, **kwargs):
+        self.pv = epics.PV(pv_name, *args, **kwargs)
+
+    @property
+    def connected(self):
+        return self.pv.connected
+
+    @raise_if_disconnected
+    def get(self, *args, **kwargs):
+        # pass through
+        return self.pv.get(*args, **kwargs)
+
+
+class EpicsSignalLiteRW(EpicsSignalLite):
+    """A simplified EpicsSignal for demo purposes only
+    
+    This is a wrapper around a writeable PV and its readback value.
+    """
+    def __init__(self, pv_name, *args, **kwargs):
+        super().__init__(pv_name, *args, **kwargs)
+        self.readback_pv = epics.PV('{}.RBV'.format(pv_name))
+
+    @property
+    def connected(self):
+        return self.pv.connected and self.readback_pv.connected
+
+    @raise_if_disconnected
+    def get(self, *args, **kwargs):
+        # pass through to the readback PV
+        return self.readback_pv.get(*args, **kwargs)
+
+    @raise_if_disconnected
+    def put(self, *args, **kwargs):
+        # pass through to the writeable PV -- potentially could check limits
+        # TODO: Should this return a StatusObj?
+        return self.pv.put(*args, **kwargs)
+
+
+class Signal:
+    "A descriptor representing a single read-only PV"
+    _class = EpicsSignalLite  # type of object returned by __get__
+
+    def __init__(self, pv_template, *args, **kwargs):
+        if '{base_name}' not in pv_template:
+            raise ValueError("pv_template must contain '{base_name}'")
         self.pv_template = pv_template
+        self.args = args
+        self.kwargs = kwargs
 
     def __get__(self, instance, owner):
         if instance is None:
             return
-        # Return PV value
         pv_name = self.pv_template.format(base_name=instance.base_name)
         if pv_name not in instance._pvs:
             # This PV is being read for the first time. Connect.
-            instance._pvs[pv_name] = epics.PV(pv_name)
-        return instance._pvs[pv_name].get()
+            instance._pvs[pv_name] = self._class(pv_name,
+                                                 *self.args, **self.kwargs)
+        return instance._pvs[pv_name]
 
 
-class SignalRW(SignalR):
-    "A descriptor respresenting an writable PV"
-    def __set__(self, instance, value):
-        pv_name = pv_template.format(instance.base_name)
-        if pv_name not in instance._pvs:
-            # This PV is being written to for the first time. Connect.
-            instance._pvs[pv_name] = epics.PV(pv_name)
-        instance._pvs[pv_name].put(value)
-
-
-class SignalsAccessor:
-    "a basic accessor object to put signals in a scope"
-    def __init__(self, parent):
-        self.parent = parent
-
-    def __getattr__(self, name):
-        getattr(self.parent, name)  # make sure it is created
-        template = self.parent._templates[name]
-        pv_name = template.format(base_name=self.parent.base_name)
-        return self.parent._pvs[pv_name]
+class SignalRW(Signal):
+    "A descriptor representing a writeable PV with a readback value."
+    _class = EpicsSignalLiteRW
 
 
 class SignalMeta(type):
@@ -52,36 +101,40 @@ class SignalMeta(type):
     def __new__(cls, name, bases, clsdict):
         clsobj = super().__new__(cls, name, bases, clsdict)
         # private dict of signal names and signal objects
-        sig_dict = {k: v for k, v in clsdict.items() if isinstance(v, SignalR)}
+        sig_dict = {k: v for k, v in clsdict.items() if isinstance(v, Signal)}
         clsobj._templates = {k: v.pv_template for k, v in sig_dict.items()}
-        clsobj._signals_dict = sig_dict
+        clsobj.signals = sig_dict
+        clsobj.signal_names = list(sig_dict.keys())
         # design a default signature for the set method
-        writable_signals = [k for k, v in clsobj._signals_dict.items()
+        writable_signals = [k for k, v in clsobj.signals.items()
                             if isinstance(v, SignalRW)]
         signature = Signature([Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
                               for name in writable_signals])
-        clsobj._set_signature = signature
+        clsobj._default_sig_for_set = signature
         # public accessor of signal objects
         clsobj._pvs = {}
         return clsobj
 
 
 class Base(metaclass=SignalMeta):
-    "Base class for hardware objects that can be read but not set"
+    """
+    Base class for hardware objects
 
-    def __init__(self, base_name, read_signals=None):
+    This class provides attribute access to one or more Signals, which can be
+    a mixture of read-only and writable. All must share the same base_name.
+    """
+    def __init__(self, base_name, read_fields=None):
         self.base_name = base_name
-        self.signals = SignalsAccessor(self)
-        if read_signals is None:
-            self.read_signals = list(self._signals_dict.keys())
+        if read_fields is None:
+            self.read_fields = self.signal_names
 
     def read(self):
         # map names ("data keys") to actual values
-        return {name: getattr(self, name) for name in self.read_signals}
+        return {name: getattr(self, name).get() for name in self.read_fields}
 
     def describe(self):
-        return {name: {'source': getattr(self.signals, name).pvname}
-                for name in self.read_signals}
+        return {name: {'source': getattr(self, name).pv.pvname}
+                for name in self.read_fields}
 
     def stop(self):
         "to be defined by subclass"
@@ -94,29 +147,32 @@ class Base(metaclass=SignalMeta):
 
 class SettableBase(Base):
     """
-    Base class for hardware objects with some writable signals
+    Base class for hardware objects that can be set
 
-    The entire purpose of this base class is provide an auto-generated set
+    The entire purpose of this base class is to provide an auto-generated set
     method with a signature that provides one argument per writable signal.
 
-    If you want a different signature, or you want to control the order, you
+    If you want a different signature, you
     need to write you own set, and this subclass adds no utility.
     """
     def set(self, *args, **kwargs):
-        bound = self._set_signature.bind(*args, **kwargs)
+        bound = self._default_sig_for_set.bind(*args, **kwargs)
         status_objs = []
         for name, val in bound.arguments.items():
-            sig = getattr(self.signals, name)
-            status_objs.append(sig.set(val))
+            sig = getattr(self, name)
+            # TODO : Will sig.put return a status object?
+            status_objs.append(sig.put(val))
         return status_objs
 
 
 class Motor(Base):
-    """
-    motor = Motor()
-    RE(AbsScan(motor, 1, 5 ,5))
-    """
-    position = SignalRW('readPV1')
+    val = SignalRW('{base_name}.VAL')
+    val = SignalRW('{base_name}.VAL')
+    egu = SignalRW('{base_name}.EGU')
+    movn = SignalRW('{base_name}.MOVN')
+    dmov = SignalRW('{base_name}.DMOV')
+    stop = SignalRW('{base_name}.STOP')
+    
 
 
 def name_from_pv(pv):
