@@ -84,11 +84,11 @@ class Signal:
         if instance is None:
             return
         pv_name = self.pv_template.format(base_name=instance.base_name)
-        if pv_name not in instance._pvs:
-            # This PV is being read for the first time. Connect.
-            instance._pvs[pv_name] = self._class(pv_name,
-                                                 *self.args, **self.kwargs)
-        return instance._pvs[pv_name]
+        attr_name = instance._templates[self.pv_template]
+        if pv_name not in instance.signals:
+            instance.signals[attr_name] = self._class(pv_name, *self.args,
+                                                      **self.kwargs)
+        return instance.signals[attr_name]
 
 
 class SignalRW(Signal):
@@ -100,19 +100,21 @@ class SignalMeta(type):
     "Creates attributes for signals by inspecting class definition"
     def __new__(cls, name, bases, clsdict):
         clsobj = super().__new__(cls, name, bases, clsdict)
-        # private dict of signal names and signal objects
+        # maps attribute names to Signal classes
         sig_dict = {k: v for k, v in clsdict.items() if isinstance(v, Signal)}
-        clsobj._templates = {k: v.pv_template for k, v in sig_dict.items()}
-        clsobj.signals = sig_dict
+        # maps pv templates to attribute names
+        clsobj._templates = {v.pv_template: k for k, v in sig_dict.items()}
+        # clsobj.signals = sig_dict
+        # list of attribute names
         clsobj.signal_names = list(sig_dict.keys())
-        # design a default signature for the set method
-        writable_signals = [k for k, v in clsobj.signals.items()
+        # Generate a default signature for the set method.
+        writable_signals = [k for k, v in sig_dict.items()
                             if isinstance(v, SignalRW)]
         signature = Signature([Parameter(name, Parameter.POSITIONAL_OR_KEYWORD)
                               for name in writable_signals])
         clsobj._default_sig_for_set = signature
         # public accessor of signal objects
-        clsobj._pvs = {}
+        clsobj.signals = {}
         return clsobj
 
 
@@ -127,6 +129,7 @@ class Base(metaclass=SignalMeta):
         self.base_name = base_name
         if read_fields is None:
             self.read_fields = self.signal_names
+        self.describe()  # raise here if something is broken
 
     def read(self):
         # map names ("data keys") to actual values
