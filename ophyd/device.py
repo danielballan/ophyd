@@ -706,6 +706,19 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
         '''describe the configuration data keys' data types/other metadata'''
         return self._describe_attr_list(self.configuration_attrs, config=True)
 
+    def subscribe(self, callback):
+        """
+        Subscribe callback to all Signals under this device.
+
+        Parameters
+        ----------
+        callback : callable
+            a function that should accept arbitrary args, kwargs, with
+            a signature like `f(*args, **kwargs)`
+        """
+        for attr in monitor_attrs:
+            getattr(self, attr).subscribe(callback)
+
     @property
     def trigger_signals(self):
         names = [attr for attr, cpt in self._sig_attrs.items()
