@@ -217,7 +217,7 @@ class PluginBase(ADBase):
 
     dimensions = C(EpicsSignalRO, 'Dimensions_RBV')
     dropped_arrays = C(SignalWithRBV, 'DroppedArrays')
-    enable = C(SignalWithRBV, 'EnableCallbacks', string=True)
+    enable = C(SignalWithRBV, 'EnableCallbacks')
     min_callback_time = C(SignalWithRBV, 'MinCallbackTime')
     nd_array_address = C(SignalWithRBV, 'NDArrayAddress')
     nd_array_port = C(SignalWithRBV, 'NDArrayPort')

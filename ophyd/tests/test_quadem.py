@@ -55,7 +55,7 @@ def quadem():
             sig = getattr(cc, sig)
             sig._read_pv = sig._write_pv
         cc.enable._read_pv = cc.enable._write_pv
-        cc.enable._write_pv.enum_strs = ['Disabled', 'Enabled']
+        #cc.enable._write_pv.enum_strs = ['Disabled', 'Enabled']
         cc.port_name._read_pv.put(k.upper())
     ''' End: Ugly Hack '''
 

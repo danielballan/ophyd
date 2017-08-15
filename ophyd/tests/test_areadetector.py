@@ -102,7 +102,7 @@ def test_detector():
     cam.image_mode.put('Single')
     # plugins don't live on detectors now:
     # det.image1.enable.put('Enable')
-    cam.array_callbacks.put('Enable')
+    cam.array_callbacks.put(1)
 
     det.get()
     st = det.trigger()
