@@ -613,26 +613,6 @@ class ROIPlugin(PluginBase):
                           'are used.'),
                      default_read_attrs=('x', 'y', 'z'))
 
-    def status(self, status, ROI_number = 1):
-        '''Enable the ROI calculations in either the x, y or z directions.
-
-        This function enables, or disables the ROI given by ROI_number.
-        
-        PARAMETER
-        ---------
-        status : string.
-            Indicates the status of the ROI to set, can be 'enable' or 'disable'.
-
-        ROI_number : integer.
-            The number of the ROI to enable.
-            
-        '''
-        
-        return get_attr(self, f'roi{ROI_number}.enable').set(status)
-            
-
-
-
     max_xy = DDC(ad_group(EpicsSignal,
                           (('x', 'MaxX'),
                            ('y', 'MaxY'))),
@@ -653,7 +633,7 @@ class ROIPlugin(PluginBase):
                   doc='Minimum size of the ROI in XYZ',
                   default_read_attrs=('min_x', 'min_y', 'min_z'))
 
-    def set(self, region, ROI_num = 1 ):
+    def set(self, region):
         ''' This functions allows for the ROI regions to be set.
 
         This function takes in an ROI_number, and a dictionary of tuples and sets the ROI region.
@@ -662,16 +642,13 @@ class ROIPlugin(PluginBase):
         ----------
         region: dictionary.
             A dictionary defining the region to be set, which has the structure:
-            { 'x':[min, size], 'y':[min, size], 'x':[min, size]}. 
+            { 'x':[min, size], 'y':[min, size], 'z':[min, size]}. 
             Any of the keywords can be ommitted, and they will be ignored.
-        ROI_number: integer.
-            The ROI number that the region needs to be set for.
-
         '''
         if region is not None:
-            for key, value in region.items():
-                getattr(self, f'roi{roi_number}.min_xyz.min_{key}').put(value[0])
-                getattr(self, f'roi{roi_number}.size.{key}').put(value[1])
+            for direction, value in region.items():
+                getattr(self, f'min_xyz.min_{direction}').put(value[0])
+                getattr(self, f'size.{direction}').put(value[1])
 
         return NullStatus()
         
@@ -682,13 +659,11 @@ class ROIPlugin(PluginBase):
 
         '''
         out_dict = OrderedDict({})
-        for ROI_num in [1,2,3,4]:
-            out_dict[f'ROI{ROI_num}_enabled'] = {'timestamp': ttime.time(), 
-                            'value': getattr(self, f'roi{ROI_num}.enable').get() }
-            for direction in ['x', 'y', 'z']:
-                out_dict[f'ROI{ROI_num}_x'] = {'timestamp': ttime.time(), 
-                            'value': (getattr(self, f'roi{ROI_num}.min_xyz.min_{direction}').get(),
-                                        getattr(self, f'roi{ROI_num}.size_{direction}').get())}
+        out_dict[f'enabled'] = {'timestamp': ttime.time(), 'value': self.enable.get() }
+        for direction in ['x', 'y', 'z']:
+            out_dict[self.name] = {'timestamp': ttime.time(), 
+                                        'value': (getattr(self, f'min_xyz.min_{direction}').get(),
+                                        getattr(self, f'size_{direction}').get())}
 
         return out_dict
 
