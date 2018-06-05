@@ -646,15 +646,12 @@ class ROIPlugin(PluginBase):
             Any of the keywords can be ommitted, and they will be ignored.
         '''
         if region is not None:
-            status = None
+            status = []
             for direction, value in region.items():
-                if status == None:
-                    status = getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0])
-                else:
-                    status = status & getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0])
-                status = status & getattr(self, 'size.{}'.format(direction)).put(value[1])
+                status.append( getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0]) )
+                status.append( getattr(self, 'size.{}'.format(direction)).put(value[1]) )
                 
-        return status
+        return functtools.reduce(operator.and_, status)
 
     name_ = C(SignalWithRBV, 'Name', doc='ROI name')
     reverse = DDC(ad_group(SignalWithRBV,
