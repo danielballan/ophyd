@@ -576,7 +576,7 @@ class ROIPlugin(PluginBase):
     _default_configuration_attrs = (PluginBase._default_configuration_attrs + (
         'roi_enable', 'name_', 'bin_', 'data_type_out', 'enable_scale')
     )
-    _default_read_attrs = ['enable', 'min_xyz_min_x', 'size_x', 'min_xyz_min_y', 'size_y', 'min_xyz_min_z', 'size_z']
+    _default_read_attrs = ['enable', 'min_x', 'size_x', 'min_y', 'size_y', 'min_z', 'size_z']
     array_size = DDC(ad_group(EpicsSignalRO,
                               (('x', 'ArraySizeX_RBV'),
                                ('y', 'ArraySizeY_RBV'),
