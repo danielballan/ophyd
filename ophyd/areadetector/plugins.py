@@ -647,8 +647,8 @@ class ROIPlugin(PluginBase):
         '''
         if region is not None:
             for direction, value in region.items():
-                getattr(self, f'min_xyz.min_{direction}').put(value[0])
-                getattr(self, f'size.{direction}').put(value[1])
+                getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0])
+                getattr(self, 'size.{}'.format(direction)).put(value[1])
 
         return NullStatus()
         
@@ -659,25 +659,25 @@ class ROIPlugin(PluginBase):
 
         '''
         out_dict = OrderedDict({})
-        out_dict[f'{self.name}_status'] = {'timestamp': ttime.time(), 'value': self.enable.get() }
+        out_dict['{}_status'.format(self.name)] = {'timestamp': ttime.time(), 'value': self.enable.get() }
         for direction in ['x', 'y', 'z']:
-            out_dict[f'{self.name}_{direction}'] = {'timestamp': ttime.time(), 
-                                        'value': (getattr(self, f'min_xyz.min_{direction}').get(),
-                                        getattr(self, f'size_{direction}').get())}
+            out_dict['{}_{}'.format(self.name, direction)] = {'timestamp': ttime.time(), 
+                                        'value': (getattr(self, 'min_xyz.min_{}'.format(direction)).get(),
+                                        getattr(self, 'size_{}'.format(direction)).get())}
 
         return out_dict
 
-    def dscribe(self):
+    def describe(self):
         '''This is the describe method that is used in conjunction with the 'read' mehtod.
 
         This provides schema related information , eg (shape, dtype), and units, limits, precision
         etc.
         '''
         out_dict = OrderedDict({})
-        out_dict[f'{self.name}_status'] = {'dtype': 'string', 'precision': None, 'shape': None,
+        out_dict['{}_status'.format(self.name)] = {'dtype': 'string', 'precision': None, 'shape': None,
                             'source': None }
         for direction in ['x','y','z']:
-            out_dict[f'{self.name}_{direction}'] = {'dtype': 'object', 'precision': None, 
+            out_dict['{}_{}'.format(self.name, direction)] = {'dtype': 'object', 'precision': None, 
                         'shape': [1,1], 'source': None }
 
         return out_dict
