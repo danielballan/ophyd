@@ -659,7 +659,7 @@ class ROIPlugin(PluginBase):
 
         '''
         out_dict = OrderedDict({})
-        out_dict[f'enabled'] = {'timestamp': ttime.time(), 'value': self.enable.get() }
+        out_dict[f'status'] = {'timestamp': ttime.time(), 'value': self.enable.get() }
         for direction in ['x', 'y', 'z']:
             out_dict[self.name] = {'timestamp': ttime.time(), 
                                         'value': (getattr(self, f'min_xyz.min_{direction}').get(),
