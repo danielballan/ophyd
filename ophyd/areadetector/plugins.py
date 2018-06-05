@@ -569,6 +569,16 @@ class OverlayPlugin(PluginBase):
 
 
 class ROIPlugin(PluginBase):
+    def __init__(self,*args, **kwargs):
+        self.min_xyz.min_x.name = '{name}_min_x.format(name = self.name)'
+        self.min_xyz.min_y.name = '{name}_min_y.format(name = self.name)'
+        self.min_xyz.min_z.name = '{name}_min_z.format(name = self.name)'
+        self.size.x.name = '{name}_size_x.format(name = self.name)'
+        self.size.y.name = '{name}_size_y.format(name = self.name)'
+        self.size.z.name = '{name}_size_z.format(name = self.name)'
+        super().__initi__(*args, **kwargs)
+       
+      
     _default_suffix = 'ROI1:'
     _suffix_re = 'ROI\d:'
     _html_docs = ['NDPluginROI.html']
@@ -576,7 +586,7 @@ class ROIPlugin(PluginBase):
     _default_configuration_attrs = (PluginBase._default_configuration_attrs + (
         'roi_enable', 'name_', 'bin_', 'data_type_out', 'enable_scale')
     )
-    _default_read_attrs = ['enable', 'min_x', 'size_x', 'min_y', 'size_y', 'min_z', 'size_z']
+    _default_read_attrs = ['enable', 'min_xyz.min_x', 'size.x', 'min_xyz.min_y', 'size.y', 'min_xyz.min_z', 'size.z']
     array_size = DDC(ad_group(EpicsSignalRO,
                               (('x', 'ArraySizeX_RBV'),
                                ('y', 'ArraySizeY_RBV'),
@@ -651,7 +661,7 @@ class ROIPlugin(PluginBase):
                 status.append( getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0]) )
                 status.append( getattr(self, 'size.{}'.format(direction)).put(value[1]) )
                 
-        return functtools.reduce(operator.and_, status)
+        return functools.reduce(operator.and_, status)
 
     name_ = C(SignalWithRBV, 'Name', doc='ROI name')
     reverse = DDC(ad_group(SignalWithRBV,
