@@ -14,7 +14,6 @@ from collections import OrderedDict
 import numpy as np
 
 from ophyd import Component as Cpt
-from ophyd.sim import NullStatus
 from .base import (ADBase, ADComponent as C, ad_group,
                    EpicsSignalWithRBV as SignalWithRBV)
 from ..signal import (EpicsSignalRO, EpicsSignal, ArrayAttributeSignal)
@@ -577,6 +576,7 @@ class ROIPlugin(PluginBase):
     _default_configuration_attrs = (PluginBase._default_configuration_attrs + (
         'roi_enable', 'name_', 'bin_', 'data_type_out', 'enable_scale')
     )
+    _default_read_attrs = ['enable', 'min_xyz_min_x', 'size_x', 'min_xyz_min_y', 'size_y', 'min_xyz_min_z', 'size_z']
     array_size = DDC(ad_group(EpicsSignalRO,
                               (('x', 'ArraySizeX_RBV'),
                                ('y', 'ArraySizeY_RBV'),
@@ -646,42 +646,15 @@ class ROIPlugin(PluginBase):
             Any of the keywords can be ommitted, and they will be ignored.
         '''
         if region is not None:
+            status = None
             for direction, value in region.items():
-                getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0])
-                getattr(self, 'size.{}'.format(direction)).put(value[1])
-
-        return NullStatus()
-        
-    def read(self):
-        '''This function reads back the current ROI status and size.
-
-        This function returns the ROI status and size for each of the ROI's for the detector.
-
-        '''
-        out_dict = OrderedDict({})
-        out_dict['{}_status'.format(self.name)] = {'timestamp': ttime.time(), 'value': self.enable.get() }
-        for direction in ['x', 'y', 'z']:
-            out_dict['{}_{}'.format(self.name, direction)] = {'timestamp': ttime.time(), 
-                                        'value': (getattr(self, 'min_xyz.min_{}'.format(direction)).get(),
-                                        getattr(self, 'size_{}'.format(direction)).get())}
-
-        return out_dict
-
-    def describe(self):
-        '''This is the describe method that is used in conjunction with the 'read' mehtod.
-
-        This provides schema related information , eg (shape, dtype), and units, limits, precision
-        etc.
-        '''
-        out_dict = OrderedDict({})
-        out_dict['{}_status'.format(self.name)] = {'dtype': 'string', 'precision': None, 'shape': None,
-                            'source': None }
-        for direction in ['x','y','z']:
-            out_dict['{}_{}'.format(self.name, direction)] = {'dtype': 'object', 'precision': None, 
-                        'shape': [1,1], 'source': None }
-
-        return out_dict
-
+                if status == None:
+                    status = getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0])
+                else:
+                    status = status & getattr(self, 'min_xyz.min_{}'.format(direction)).put(value[0])
+                status = status & getattr(self, 'size.{}'.format(direction)).put(value[1])
+                
+        return status
 
     name_ = C(SignalWithRBV, 'Name', doc='ROI name')
     reverse = DDC(ad_group(SignalWithRBV,
