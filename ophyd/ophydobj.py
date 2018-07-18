@@ -6,9 +6,8 @@ from collections import namedtuple
 import time
 import logging
 
-from .status import (StatusBase, MoveStatus, DeviceStatus)
 
-#define some functions
+# define some functions
 record_telemetry = TelemetryUI.record_telemetry
 fetch_telemetry = TelemetryUI.fetch_telemetry
 
@@ -37,17 +36,17 @@ class UnknownSubscription(KeyError):
     "Subclass of KeyError.  Raised for unknown event type"
     ...
 
- 
+
 _TimeStats = namedtuple('TimeStats', 'est_time std_dev')
 
 
 class TimeTelemetry:
-    '''The base class for the collecting and returning time related telemetry for ophyd objects.
+    '''The base class for the collecting and returning time related telemetry
+    for ophyd objects.
 
-    This is used to collect and return statistical information about the time it takes the instance
-    to perform various actions via the addition of obj.telemetry.fetch, obj.telemetry.record and 
-    obj.telemetry.stats
-
+    This is used to collect and return statistical information about the time
+    it takes the instance to perform various actions via the addition of
+    obj.telemetry.fetch, obj.telemetry.record and obj.telemetry.stats.
     '''
     def __init__(self, obj):
         '''The initialization method.
@@ -64,91 +63,74 @@ class TimeTelemetry:
     def fetch(self, cmd):
         '''Returns the telemetry dictionary for the given 'cmd'.
 
-        This attribute is the method that returns the telemetry for the action given by 'cmd' on 
-        the object. The returned information is supplied in a dictionary with a where the attribute 
-        names are the keywords and the values are a dictionary with 'input', measured' and 'timestamp' 
-        as keywords and matched lists as values.
+        This attribute is the method that returns the telemetry for the action
+        given by 'cmd' on the object. The returned information is supplied in a
+        dictionary with a where the attribute names are the keywords and the
+        values are a dictionary with 'input', measured' and 'timestamp' as
+        keywords and matched lists as values.
 
         PARAMETERS
         ----------
         cmd, str.
-            The command str, used in the plan message, that is to be applied to the object
-       
+            The command str, used in the plan message, that is to be applied to
+            the object.
+
         RETURNS
         -------
         Data, dict.
-            A dictionary with a keyword 'time', a lower keyword '0' and values being a dictionary with 
-            keywords 'estimated', 'measured' and 'timestamp'. The corresponding values are matched lists
-            additionally Data may contain keywords for each measured attribute, lower keywords for the 
-            'set' postiion of the attribute and a corresponding dictionary. The corresponding dictionary            has keywords 'input', 'measured' and 'time' and a corresponding list for each. A final 
-            optional keyword for data is 'position', with the lower keyword '0' and a dictioanry with 
-            the keywords 'start', 'stop' and 'timestamp'.  
+            A dictionary with a keyword 'time', a lower keyword '0' and values
+            being a dictionary with keywords 'estimated', 'measured' and
+            'timestamp'. The corresponding values are matched lists
+            additionally. Data may contain keywords for each measured
+            attribute, lower keywords for the 'set' postiion of the attribute
+            and a corresponding dictionary. The corresponding dictionary has
+            keywords 'input', 'measured' and 'time' and a corresponding list
+            for each. A final optional keyword for data is 'position', with the
+            lower keyword '0' and a dictioanry with the keywords 'start',
+            'stop' and 'timestamp'.
         '''
 
         return fetch_telemetry(self.obj.name, cmd)
 
-
-    def stats(self, cmd, inputs):
-        '''Returns the statistics dictionary for the given 'cmd'.
-
-        This attribute is the method that returns the statistics for the action given by 'cmd' on 
-        the object. The returned information is supplied in a dictionary where the stored attribute 
-        names are the keywords and the values are a mean, std_dev pair as a list.
-
-        PARAMETERS
-        ----------
-        cmd, str.
-            The command str, used in the plan message, that is to be applied to the object.
-        inputs, dict.
-            A dictionary containing the setpoints for each attribute, with the attribute name
-            as the keyword and the setpoint as the value.
-       
-        RETURNS
-        -------
-        Data, dict.
-            A dictionary with the keyword 'time' and a 'mean/std_dev' pair as a named tuple. 
-            Additional keywords for each measured attribute and a corresponding mean/std_dev pair 
-            as a list may also be included. 
-        '''
-
-        return fetch_statistics(self.obj.name, cmd, inputs)
-
-
     def record(self, cmd, data):
         '''Records the telemetry data for the given 'cmd'.
 
-        This attribute is the method that records the telemetry for the action given by 'cmd' on 
-        the object. The input dictionary should have a keyword for each measured attribute and a
-        corresponding measured value. 
+        This attribute is the method that records the telemetry for the
+        action given by 'cmd' on the object. The input dictionary should
+        have a keyword for each measured attribute and acorresponding
+        measured value.
 
         PARAMETERS
         ----------
         cmd, str.
-            The command str, used in the plan message, that is to be applied to the object
+            The command str, used in the plan message, that is to be applied to
+            the object
         data, dict.
-            A dictionary with the keyword 'time' and a corresponding tuple (estimated time, 
-            measured time, timestamp). Additional optional keywords for each measured attribute 
-            and a corresponding tuple (input value, measured value, timestamp) and an optional
-            keyword 'position' and corresponding tuple (start_position, stop_position, timestamp).
-
+            A dictionary with the keyword 'time' and a corresponding tuple
+            (estimated time, measured time, timestamp). Additional optional
+            keywords for each measured attribute and a corresponding tuple
+            (input value, measured value, timestamp) and an optional keyword
+            'position' and corresponding tuple (start_position, stop_position,
+            timestamp).
         '''
         record_telemetry(self.obj.name, cmd, data)
-
 
 
 class EstTime:
     '''The base class for the time estimation on all OphydObjs.
 
-    This allows the devices to provide an estimate of how long it takes to perform specific 
-    commands on them via the addition of obj.est_time and obj.est_time.cmd methods attributes. 
-    This must also interact with the 'stats' methods in order to use time statistics if they 
-    exist to improve the time estimation.
+    This allows the devices to provide an estimate of how long it takes to
+    perform specific commands on them via the addition of obj.est_time and
+    obj.est_time.cmd methods attributes. This must also interact with the
+    'stats' methods in order to use time statistics if they exist to improve
+    the time estimation.
 
     Attributes
     ----------
-    'cmd', method. 
-        A method that returns the estimated time it takes to perform 'cmd' on the device. (where 
-        'cmd' is the name of any message command that can be applied to the device).
+    'cmd', method.
+        A method that returns the estimated time it takes to perform 'cmd' on
+        the device. (where 'cmd' is the name of any message command that can be
+        applied to the device).
     '''
 
     def __init__(self, obj):
@@ -161,74 +143,82 @@ class EstTime:
         '''
         self.obj = obj
 
-    def __call__(self, cmd, plan_history = {}, vals = [], record = False):
+    def __call__(self, cmd, plan_history={}, vals=[], record=False):
         '''
         PARAMETERS
         ----------
         cmd, str.
-            The command str, used in the plan message, that is to be applied to the object
+            The command str, used in the plan message, that is to be applied to
+            the object
         plan_history: dict, optional.
-            A dictionary containing any values that are to override the current values, in the 
-            dictionary plan_history['set'], and optionally the number of times since the last trigger, 
-            in the dictionary plan_history['trigger']. Each of these dictionaries have the object name 
-            as keywords and the values are stated above. Default value is empty dict, if record = 
-            True then plan_history should also include a keyword 'time' whose value is a dictionary 
-            with the keywords'delta_time', with a value giving the time taken to complete the action, 
-            and 'timestamp' with a value giving the timestamp for the start of the action.
+            A dictionary containing any values that are to override the current
+            values, in the dictionary plan_history['set'], and optionally the
+            number of times since the last trigger, in the dictionary
+            plan_history['trigger']. Each of these dictionaries have the object
+            name as keywords and the values are stated above. Default value is
+            empty dict, if record = True then plan_history should also include
+            a keyword 'time' whose value is a dictionary with the keywords
+            'delta_time', with a value giving the time taken to complete the
+            action, and 'timestamp' with a value giving the timestamp for the
+            start of the action.
         record: Boolean, optional
-            A boolean indicator to show if this is also a 'record' call, where by time information 
-            about a completed use of the action is also passed in via plan_history (see above for 
-            description).
+            A boolean indicator to show if this is also a 'record' call, where
+            by time information about a completed use of the action is also
+            passed in via plan_history (see above for description).
 
         RETURNS
         -------
         out_time: namedtuple.
-            A namedtuple containing the estimated time (est_time) as the first element and the  
-            standard deviation (std_dev) as the second element.  
+            A namedtuple containing the estimated time (est_time) as the first
+            element and the standard deviation (std_dev) as the second element.
        '''
-        
+
         try:
-            method = getattr(self.obj.est_time, cmd )
+            method = getattr(self.obj.est_time, cmd)
         except AttributeError:
-            print (f'There is no {self.obj.name}.est_time.{cmd} attribute') 
+            print(f'There is no {self.obj.name}.est_time.{cmd} attribute')
             raise
 
-        return method(plan_history = plan_history, vals = vals, record = record)
+        return method(plan_history=plan_history, vals=vals, record=record)
 
-    def set(self, plan_history = {}, vals = [], record = False):
+    def set(self, plan_history={}, vals=[], record=False):
         '''Estimates the time (est_time) to perform 'set' on this object.
-                
-        This method returns an estimated time (est_time) to perform set between the position 
-        specifed in plan_history and the position defined in vals[0]. If statistics for this action, 
-        and any configuration values found in plan_history, exist it uses mean values and works out 
-        a standard deviation (std_dev) otherwise it uses the current value (or the value from 
-        plan_history['set'] if that is different) to determine an est_time and returns float('nan') 
-        for the std_dev.
+
+        This method returns an estimated time (est_time) to perform set between
+        the position specifed in plan_history and the position defined in
+        vals[0]. If statistics for this action, and any configuration values
+        found in plan_history, exist it uses mean values and works out a
+        standard deviation (std_dev) otherwise it uses the current value (or
+        the value from plan_history['set'] if that is different) to determine
+        an est_time and returns float('nan') for the std_dev.
 
         PARAMETERS
         ----------
         plan_history: dict, optional.
-            A dictionary containing any values that are to override the current values, in the 
-            dictionary plan_history['set'], and optionally the number of times since the last 
-            trigger, in the dictionary plan_history['trigger']. Each of these dictionaries have the 
-            object name as keywords and the values are stated above. Default value is empty dict,
-            if record = True then plan_history should also include a keyword 'time' whose value is a 
-            dictionary with the keywords'delta_time', with a value giving the time taken to complete 
-            the action, and 'timestamp' with a value giving the timestamp for the start of the action.
+            A dictionary containing any values that are to override the current
+            values, in the dictionary plan_history['set'], and optionally the
+            number of times since the last trigger, in the dictionary
+            plan_history['trigger']. Each of these dictionaries have the object
+            name as keywords and the values are stated above. Default value is
+            empty dict, if record = True then plan_history should also include
+            a keyword 'time' whose value is a dictionary with the keywords
+            'delta_time', with a value giving the time taken to complete the
+            action, and 'timestamp' with a value giving the timestamp for the
+            start of the action.
         vals: list, optional.
-            A list of any required input parameters for this command, it matches the structure
-            of the msg.arg list from a plan message. Default value is empty list.
+            A list of any required input parameters for this command, it
+            matches the structure of the msg.arg list from a plan message.
+            Default value is empty list.
         record: Boolean, optional
-            A boolean indicator to show if this is also a 'record' call, where by time information 
-            about a completed use of the action is also passed in via plan_history (see above for 
-            description).
-
+            A boolean indicator to show if this is also a 'record' call, where
+            by time information about a completed use of the action is also
+            passed in via plan_history (see above for description).
 
         RETURNS
         -------
         stats: namedtuple.
-            A namedtuple containing the est_time as the first element and the std_dev as the second 
-            element.
+            A namedtuple containing the est_time as the first element and the
+            std_dev as the second element.
         '''
 
         inputs = {}
@@ -237,7 +227,7 @@ class EstTime:
         try:
             stats = getattr(self.obj.telemetry, 'stats')
         except AttributeError:
-            print (f'There is no {self.obj.name}.telemetry.stats attribute')
+            print(f'There is no {self.obj.name}.telemetry.stats attribute')
             raise
 
         try:
@@ -245,92 +235,107 @@ class EstTime:
         except KeyError:
             inputs['start'] = self.obj.position
 
-
         if hasattr(self.obj, 'velocity') and hasattr(self.obj, 'settle_time'):
-            
+
             inputs['distance'] = vals[0] - inputs['start']
-            
-            for attribute in ['velocity', 'settle_time']: # the calculation arguments
+
+            for attribute in ['velocity', 'settle_time']:
                 try:
                     inputs[attribute] = plan_history['set'][attribute]
                 except KeyError:
                     try:
-                        inputs[attribute] = getattr(self.obj, attribute).position
+                        inputs[attribute] = \
+                            getattr(self.obj, attribute).position
                     except:
                         pass
 
-            stats_dict = stats( 'set', inputs)
+            stats_dict = stats('set', inputs)
             try:
-                est_time = (inputs['settle_time'] + 
-                            abs(inputs['distance']) / stats_dict['velocity'].mean )
-                std_dev = abs(est_time - (inputs['settle_time'] + abs(inputs['distance']) \
-                        / (stats_dict['velocity'].mean - stats_dict['velocity'].std_dev)))
+                est_time = (inputs['settle_time'] +
+                            abs(inputs['distance']) /
+                            stats_dict['velocity'].mean)
+                std_dev = abs(est_time - (inputs['settle_time'] +
+                                          abs(inputs['distance']) /
+                                          (stats_dict['velocity'].mean -
+                                           stats_dict['velocity'].std_dev)))
             except KeyError:
-                est_time = inputs['settle_time'] + abs(inputs['distance']) / inputs['velocity']
+                est_time = inputs['settle_time'] +\
+                           abs(inputs['distance']) / inputs['velocity']
                 std_dev = float('nan')
-            
-            out_time = _TimeStats(est_time, std_dev)
-            
-            if record: #This is where the write of the elapsed time occurs if requested.
-                data['time'] = (out_time.est_time, plan_history['time']['delta_time'], 
-                                                plan_history['time']['timestamp'] )
-                data['position'] = (inputs['start'], vals[0], plan_history['time']['timestamp'] )
 
-                meas_velocity = abs(inputs['distance']/(plan_history['time']['delta_time'] - 
-                                                            inputs['settle_time']))
-                data['velocity'] = (inputs['velocity'], meas_velocity, 
-                                                plan_history['time']['timestamp'])
-                
+            out_time = _TimeStats(est_time, std_dev)
+
+            if record:  # This is where the write of the elapsed time occurs.
+                data['time'] = (out_time.est_time,
+                                plan_history['time']['delta_time'],
+                                plan_history['time']['timestamp'])
+                data['position'] = (inputs['start'], vals[0],
+                                    plan_history['time']['timestamp'])
+
+                meas_velocity = abs(inputs['distance'] /
+                                    (plan_history['time']['delta_time'] -
+                                     inputs['settle_time']))
+                data['velocity'] = (inputs['velocity'], meas_velocity,
+                                    plan_history['time']['timestamp'])
+
                 self.obj.telemetry.record('set', data)
-                
+
         else:
-            stats_dict = stats('set', {'position' : vals[0] } ) #assume the set is not "motor like".
+            stats_dict = stats('set', {'position': vals[0]})
             if stats_dict:
-                out_time = _TimeStats(stats_dict['time'][0], stats_dict['time'][1])
+                out_time = _TimeStats(stats_dict['time'][0],
+                                      stats_dict['time'][1])
             else:
                 out_time = _TimeStats(0, float('nan'))
-            
-            if record: #This is where the write of the elapsed time occurs if requested.
-                data['time'] = (out_time.est_time, plan_history['time']['delta_time'],
-                                                plan_history['time']['timestamp'] )
-                data['position'] = (inputs['start'], vals[0], plan_history['time']['timestamp'])
-                
-                self.obj.telemetry.record('set', data )
+
+            if record:  # This is where the write of the elapsed time occurs.
+                data['time'] = (out_time.est_time,
+                                plan_history['time']['delta_time'],
+                                plan_history['time']['timestamp'])
+                data['position'] = (inputs['start'], vals[0],
+                                    plan_history['time']['timestamp'])
+
+                self.obj.telemetry.record('set', data)
 
         return out_time
 
-
-    def trigger(self, plan_history = {}, vals = [], record = False):
+    def trigger(self, plan_history={}, vals=[], record=False):
         '''Estimates the time (est_time) to perform 'trigger' on this object.
-                
-        This method returns an estimated time (est_time) to perform trigger. If statistics for 
-        this action, and any configuration values found in plan_history, exist it uses mean values 
-        and works out a standard deviation (std_dev) otherwise it uses the current value (or 
-        the value from plan_history['set'] if that is different) to determine an est_time and 
-        returns float('nan') for the std_dev.
+
+        This method returns an estimated time (est_time) to perform trigger. If
+        statistics for this action, and any configuration values found in
+        plan_history, exist it uses mean values and works out a standard
+        deviation (std_dev) otherwise it uses the current value (or the value
+        from plan_history['set'] if that is different) to determine an est_time
+        and returns float('nan') for the std_dev.
 
         PARAMETERS
         ----------
         plan_history: dict, optional.
-            A dictionary containing any values that are to override the current values, in the 
-            dictionary plan_history['set'], and optionally the number of times since the last trigger, 
-            in the dictionary plan_history['trigger']. Each of these dictionaries have the object 
-            name as keywords and the values are stated above. Default value is empty dict,
-            if record = True then plan_history should also include a keyword 'time' whose value is a 
-            dictionary with the keywords'delta_time', with a value giving the time taken to complete 
-            the action, and 'timestamp' with a value giving the timestamp for the start of the action.
+            A dictionary containing any values that are to override the current
+            values, in the dictionary plan_history['set'], and optionally the
+            number of times since the last trigger, in the dictionary
+            plan_history['trigger']. Each of these dictionaries have the object
+            name as keywords and the values are stated above. Default value is
+            empty dict, if record = True then plan_history should also include
+            a keyword 'time' whose value is a dictionary with the keywords
+            'delta_time', with a value giving the time taken to complete the
+            action, and 'timestamp' with a value giving the timestamp for the
+            start of the action.
         vals: list, optional.
-            A list of any required input parameters for this command, it matches the structure
-            of the msg.arg list from a plan message. Default value is empty list.
+            A list of any required input parameters for this command, it
+            matches the structure of the msg.arg list from a plan message.
+            Default value is empty list.
         record: Boolean, optional
-            A boolean indicator to show if this is also a 'record' call, where by time information 
-            about a completed use of the action is also passed in via plan_history (see above for 
-            description).
+            A boolean indicator to show if this is also a 'record' call, where
+            by time information about a completed use of the action is also
+            passed in via plan_history (see above for description).
+
         RETURNS
         -------
         out_time: namedtuple.
-            A namedtuple containing the est_time as the first element and the std_dev as the second 
-            element.
+            A namedtuple containing the est_time as the first element and the
+            std_dev as the second element.
         '''
 
         inputs = {}
@@ -339,96 +344,106 @@ class EstTime:
         try:
             stats = getattr(self.obj.telemetry, 'stats')
         except AttributeError:
-            print (f'There is no {self.obj.name}.stats attribute')
+            print(f'There is no {self.obj.name}.stats attribute')
             raise
 
-
-        if hasattr(self.obj, 'num_images') and ( hasattr(self.obj, 'acquire_period') or
-                                                hasattr(self.obj, 'acquire_time')):
-            try: 
+        if hasattr(self.obj, 'num_images') and\
+            (hasattr(self.obj, 'acquire_period') or
+             hasattr(self.obj, 'acquire_time')):
+            try:
                 trigger_mode = plan_history['set']['trigger_mode']
             except KeyError:
                 trigger_mode = self.obj.trigger_mode
 
             if trigger_mode is 'fixed_mode':
-                params = [ 'acquire_period', 'num_images' ]
+                params = ['acquire_period', 'num_images']
             else:
-                params = [ 'acquire_time', 'num_images' ] 
+                params = ['acquire_time', 'num_images']
 
-            for value in params: # the calculation arguments
+            for value in params:  # the calculation arguments
                 try:
                     inputs[value] = plan_history['set'][value]
-                except KeyError:    
+                except KeyError:
                     inputs[value] = getattr(self.obj, value).position
 
-            stats_dict = stats( 'trigger', inputs)
+            stats_dict = stats('trigger', inputs)
             if stats_dict:
-                est_time = inputs['num_images'] * stats_dict[ params[0] ][0]
-                std_dev = abs( est_time - (inputs['num_images'] \
-                       * (stats_dict[ params[0] ][0] - stats_dict[ params[0] ][1])))
+                est_time = inputs['num_images'] * stats_dict[params[0]][0]
+                std_dev = abs(est_time - (inputs['num_images']
+                                          * (stats_dict[params[0]][0] -
+                                             stats_dict[params[0]][1])))
             else:
-                est_time = inputs['num_images'] * inputs[ params[0] ]
+                est_time = inputs['num_images'] * inputs[params[0]]
                 std_dev = float('nan')
 
             out_time = _TimeStats(est_time, std_dev)
 
-            if record: #This is where the write of the elapsed time occurs if requested.
-                data['time'] = (out_time.est_time, plan_history['time']['delta_time'], 
-                                                plan_history['time']['timestamp'] )
-    
-                meas_val = plan_history['time']['delta_time'] / inputs['num_images']
-                data[ params[0] ] = ( inputs[ params[0] ] , meas_val, 
-                                                plan_history['time']['timestamp'])
-            
+            if record:  # This is where the write of the elapsed time occurs.
+                data['time'] = (out_time.est_time,
+                                plan_history['time']['delta_time'],
+                                plan_history['time']['timestamp'])
+
+                meas_val = plan_history['time']['delta_time'] / \
+                    inputs['num_images']
+                data[params[0]] = (inputs[params[0]], meas_val,
+                                   plan_history['time']['timestamp'])
+
                 self.obj.telemetry.record('trigger', data)
 
         else:
-            stats_dict = stats('trigger', {} ) #assume the trigger is not "Area Det. like".
+            stats_dict = stats('trigger', {})
             if stats_dict:
-                out_time = _TimeStats(stats_dict['time'].mean, stats_dict['time'].std_dev)
+                out_time = _TimeStats(stats_dict['time'].mean,
+                                      stats_dict['time'].std_dev)
             else:
                 out_time = _TimeStats(0, float('nan'))
 
-            if record: #This is where the write of the elapsed time occurs if requested.
-                data['time'] = (out_time.est_time, plan_history['time']['delta_time'], 
-                                                plan_history['time']['timestamp'] )
+            if record:  # This is where the write of the elapsed time occurs.
+                data['time'] = (out_time.est_time,
+                                plan_history['time']['delta_time'],
+                                plan_history['time']['timestamp'])
 
                 self.obj.telemetry.record('trigger', data)
 
         return out_time
 
-
-    def stage(self, plan_history = {}, vals = [], record = False):
+    def stage(self, plan_history={}, vals=[], record=False):
         '''Estimates the time (est_time) to perform 'stage' on this object.
-                
-        This method returns an estimated time (est_time) to perform stage. If statistics for 
-        this action, and any configuration values found in plan_history, exist it uses mean values 
-        and works out a standard deviation (std_dev) otherwise it uses the current value (or 
-        the value from plan_history['set'] if that is different) to determine an est_time and 
-        returns float('nan') for the std_dev.
+
+        This method returns an estimated time (est_time) to perform stage. If
+        statistics for this action, and any configuration values found in
+        plan_history, exist it uses mean values and works out a standard
+        deviation (std_dev) otherwise it uses the current value (or the value
+        from plan_history['set'] if that is different) to determine an est_time
+        and returns float('nan') for the std_dev.
 
         PARAMETERS
         ----------
         plan_history: dict, optional.
-            A dictionary containing any values that are to override the current values, in the 
-            dictionary plan_history['set'], and optionally the number of times since the last trigger, 
-            in the dictionary plan_history['trigger']. Each of these dictionaries have the object 
-            name as keywords and the values are stated above. Default value is empty dict,
-            if record = True then plan_history should also include a keyword 'time' whose value is a 
-            dictionary with the keywords'delta_time', with a value giving the time taken to complete 
-            the action, and 'timestamp' with a value giving the timestamp for the start of the action.
+            A dictionary containing any values that are to override the current
+            values, in the dictionary plan_history['set'], and optionally the
+            number of times since the last trigger, in the dictionary
+            plan_history['trigger']. Each of these dictionaries have the object
+            name as keywords and the values are stated above. Default value is
+            empty dict, if record = True then plan_history should also include
+            a keyword 'time' whose value is a dictionary with the keywords
+            'delta_time', with a value giving the time taken to complete the
+            action, and 'timestamp' with a value giving the timestamp for the
+            start of the action.
         vals: list, optional.
-            A list of any required input parameters for this command, it matches the structure
-            of the msg.arg list from a plan message. Default value is empty list.
+            A list of any required input parameters for this command, it
+            matches the structure of the msg.arg list from a plan message.
+            Default value is empty list.
         record: Boolean, optional
-            A boolean indicator to show if this is also a 'record' call, where by time information 
-            about a completed use of the action is also passed in via plan_history (see above for 
-            description).       
+            A boolean indicator to show if this is also a 'record' call, where
+            by time information about a completed use of the action is also
+            passed in via plan_history (see above for description).
+
         RETURNS
         -------
         out_time: namedtuplr.
-            A namedtuple containing the est_time as the first element and the std_dev as the second 
-            element.
+            A namedtuple containing the est_time as the first element and the
+            std_dev as the second element.
         '''
 
         data = {}
@@ -436,82 +451,86 @@ class EstTime:
         try:
             stats = getattr(self.obj.telemetry, 'stats')
         except AttributeError:
-            print (f'There is no {self.obj.name}.stats attribute')
+            print(f'There is no {self.obj.name}.stats attribute')
             raise
 
-
-        stats_dict = stats('stage', {} ) 
+        stats_dict = stats('stage', {})
         if stats_dict:
-            out_time = _TimeStats(stats_dict['time'].mean, stats_dict['time'].std_dev)
+            out_time = _TimeStats(stats_dict['time'].mean,
+                                  stats_dict['time'].std_dev)
         else:
             out_time = _TimeStats(0, float('nan'))
 
-        if record: #This is where the write of the elapsed time occurs if requested.
-            data['time'] = (out_time.est_time, plan_history['time']['delta_time'], 
-                                                plan_history['time']['timestamp'] )
+        if record:  # This is where the write of the elapsed time occurs.
+            data['time'] = (out_time.est_time,
+                            plan_history['time']['delta_time'],
+                            plan_history['time']['timestamp'])
 
             self.obj.telemetry.record('stage', data)
 
         return out_time
 
-
-    def unstage(self, plan_history = {}, vals = [], record = False):
+    def unstage(self, plan_history={}, vals=[], record=False):
         '''Estimates the time (est_time) to perform 'unstage' on this object.
-                
-        This method returns an estimated time (est_time) to perform unstage. If statistics for 
-        this action, and any configuration values found in plan_history, exist it uses mean values 
-        and works out a standard deviation (std_dev) otherwise it uses the current value (or 
-        the value from plan_history['set'] if that is different) to determine an est_time and 
-        returns float('nan') for the std_dev.
+
+        This method returns an estimated time (est_time) to perform unstage. If
+        statistics for this action, and any configuration values found in
+        plan_history, exist it uses mean values and works out a standard
+        deviation (std_dev) otherwise it uses the current value (or the value
+        from plan_history['set'] if that is different) to determine an est_time
+        and returns float('nan') for the std_dev.
 
         PARAMETERS
         ----------
         plan_history: dict, optional.
-            A dictionary containing any values that are to override the current values, in the 
-            dictionary plan_history['set'], and optionally the number of times since the last trigger, 
-            in the dictionary plan_history['trigger']. Each of these dictionaries have the object 
-            name as keywords and the values are stated above. Default value is empty dict,
-            if record = True then plan_history should also include a keyword 'time' whose value is a 
-            dictionary with the keywords'delta_time', with a value giving the time taken to complete 
-            the action, and 'timestamp' with a value giving the timestamp for the start of the action.
+            A dictionary containing any values that are to override the current
+            values, in the dictionary plan_history['set'], and optionally the
+            number of times since the last trigger, in the dictionary
+            plan_history['trigger']. Each of these dictionaries have the object
+            name as keywords and the values are stated above. Default value is
+            empty dict, if record = True then plan_history should also include
+            a keyword 'time' whose value is a dictionary with the keywords
+            'delta_time', with a value giving the time taken to complete the
+            action, and 'timestamp' with a value giving the timestamp for the
+            start of the action.
         vals: list, optional.
-            A list of any required input parameters for this command, it matches the structure
-            of the msg.arg list from a plan message. Default value is empty list.
+            A list of any required input parameters for this command, it
+            matches the structure of the msg.arg list from a plan message.
+            Default value is empty list.
         record: Boolean, optional
-            A boolean indicator to show if this is also a 'record' call, where by time information 
-            about a completed use of the action is also passed in via plan_history (see above for 
-            description).       
+            A boolean indicator to show if this is also a 'record' call,
+            where by time information about a completed use of the action is
+            also passed in via plan_history (see above for description).
 
         RETURNS
         -------
         out_time: namedtuple.
-            A namedtuple containing the est_time as the first element and the std_dev as the second 
-            element.
+            A namedtuple containing the est_time as the first element and the
+            std_dev as the second element.
         '''
         data = {}
 
         try:
             stats = getattr(self.obj.telemetry, 'stats')
         except AttributeError:
-            print (f'There is no {self.obj.name}.stats attribute')
+            print(f'There is no {self.obj.name}.stats attribute')
             raise
 
-
-        stats_dict = stats('unstage', {} ) 
+        stats_dict = stats('unstage', {})
         if stats_dict:
-            out_time = _TimeStats(stats_dict['time'].mean, stats_dict['time'].std_dev)
+            out_time = _TimeStats(stats_dict['time'].mean,
+                                  stats_dict['time'].std_dev)
         else:
             out_time = _TimeStats(0, float('nan'))
 
-        if record: #This is where the write of the elapsed time occurs if requested.
-            data['time'] = (out_time.est_time, plan_history['time']['delta_time'], 
-                                                plan_history['time']['timestamp'] )
+        if record:  # This is where the write of the elapsed time occurs.
+            data['time'] = (out_time.est_time,
+                            plan_history['time']['delta_time'],
+                            plan_history['time']['timestamp'])
 
             self.obj.telemetry.record('unstage', data)
 
-
         return out_time
-
 
 
 class OphydObject:
@@ -538,7 +557,7 @@ class OphydObject:
     _default_sub = None
 
     def __init__(self, *, name=None, parent=None, labels=None,
-                 kind=None, est_time=DefaultEstTime ):
+                 kind=None, est_time=DefaultEstTime):
         if labels is None:
             labels = set()
         self._ophyd_labels_ = set(labels)
@@ -752,7 +771,7 @@ class OphydObject:
                     cb(*args, **kwargs)
                 except Exception:
                     sub_type = kwargs['sub_type']
-                    self.log.exception('Subscription %s callback '\
+                    self.log.exception('Subscription %s callback '
                                        'exception (%s)',
                                        sub_type, self)
             return inner

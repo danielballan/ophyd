@@ -146,7 +146,6 @@ class StatusBase:
         else:
             self._settle_then_run_callbacks(success=success)
 
-
     @property
     def callbacks(self):
         """
@@ -422,7 +421,7 @@ class MoveStatus(DeviceStatus):
         Motion successfully completed
     '''
 
-    def __init__(self, positioner, target, *, start_pos = None, start_ts = None,
+    def __init__(self, positioner, target, *, start_pos=None, start_ts=None,
                  **kwargs):
         self._tname = 'timeout for {}'.format(positioner.name)
 
@@ -431,27 +430,29 @@ class MoveStatus(DeviceStatus):
 
         self.pos = positioner
         if start_pos is None:
-            start_pos =  self.pos.position
-        
+            start_pos = self.pos.position
+
         self.start_pos = start_pos
         self.target = target
         self.start_ts = start_ts
         self.finish_ts = None
         self.finish_pos = None
 
-        #This section below ensures that the status object has all of the info required
-        #for storing telemetry associated with it.
+        # This section below ensures that the status object has all of the info
+        # required for storing telemetry associated with it.
         arg_names = inspect.signature(self.pos.est_time.set).parameters
         args = []
         for arg_name in arg_names:
-            try: 
-                args.append(getattr(self,arg_name))
+            try:
+                args.append(getattr(self, arg_name))
             except AttributeError:
                 try:
-                    setattr(self, arg_name, getattr(self.pos, arg_name).position)
-                    args.append(getattr(self,arg_name))
+                    setattr(self, arg_name,
+                            getattr(self.pos, arg_name).position)
+                    args.append(getattr(self, arg_name))
                 except AttributeError:
-                    print ('{} attribute on {} required but not found'.format(arg_name, self.pos))
+                    print('{} attribute on {} required but not found'
+                          .format(arg_name, self.pos))
                     raise
 
         self.est_time = self.pos.est_time.set(*args)
@@ -474,10 +475,9 @@ class MoveStatus(DeviceStatus):
             if self.success:
                 try:
                     self.pos.est_time.set.record(self)
-                except AttributeError('est_time.set.record attribute required on {}, but not found'\
-                                    .format(self.pos)):
+                except AttributeError('est_time.set.record attribute required\
+                                      on {}, but not found'.format(self.pos)):
                     raise
-    
 
     def watch(self, func):
         """
@@ -568,12 +568,12 @@ class MoveStatus(DeviceStatus):
 
     __repr__ = __str__
 
-    def _finished(self, success = True, **kwargs):
-        '''Inform the status object that it is done, and if it succeeded. If success is True
-        then also record telemetry about the move.
+    def _finished(self, success=True, **kwargs):
+        '''Inform the status object that it is done, and if it succeeded. If
+        success is True then also record telemetry about the move.
         '''
-        
-        super()._finished(success = success, **kwargs)
+
+        super()._finished(success=success, **kwargs)
         if success:
             self.pos.est_time.set.record(self)
 

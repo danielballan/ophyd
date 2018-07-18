@@ -157,10 +157,11 @@ class Component:
         return '\n'.join(doc)
 
     def __repr__(self):
-      
-        kw_str = ', '.join('{}={!r}'.format(k, v) for k, v in self.kwargs.items() \
-                           if k not in ['read_attrs','configuration_attrs'])
-                           
+
+        kw_str = ', '.join('{}={!r}'.format(k, v) for k, v in
+                           self.kwargs.items()
+                           if k not in ['read_attrs', 'configuration_attrs'])
+
         if self.suffix is not None:
             suffix_str = '{!r}'.format(self.suffix)
             if self.kwargs:
@@ -485,13 +486,14 @@ class BlueskyInterface:
             as complete when the device is ready to be read.
 
         """
-        #setup lines for saving telemetry
+        # setup lines for saving telemetry
         plan_history = {}
-        plan_history['time'] = {'timestamp': ttime.time() }
+        plan_history['time'] = {'timestamp': ttime.time()}
 
-        #lines for saving telemetry
-        plan_history['time']['delta_time'] = ttime.time() - plan_history['time']['timestamp']
-        self.est_time('trigger', plan_history = plan_history, record = True)        
+        # lines for saving telemetry
+        plan_history['time']['delta_time'] = ttime.time() - \
+            plan_history['time']['timestamp']
+        self.est_time('trigger', plan_history=plan_history, record=True)
 
         pass
 
@@ -1074,7 +1076,6 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
                 component = getattr(self, component_name)
                 res.update(component.describe_configuration())
         return res
-
 
     @property
     def hints(self):

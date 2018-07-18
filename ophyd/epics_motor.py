@@ -72,7 +72,7 @@ class EpicsMotor(Device, PositionerBase):
     tolerated_alarm = AlarmSeverity.NO_ALARM
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args,**kwargs)
+        super().__init__(*args, **kwargs)
         # Make the default alias for the user_readback the name of the
         # motor itself.
         self.user_readback.name = self.name

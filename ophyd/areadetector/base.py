@@ -90,7 +90,7 @@ class ADBase(Device):
     This serves as the base for all detectors and plugins
     '''
     def __init__(self, *args, **kwargs):
-        super().__init__( *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.est_time = ADEstTime(self.name)
 
