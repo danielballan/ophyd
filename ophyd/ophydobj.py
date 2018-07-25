@@ -53,7 +53,7 @@ class TimeTelemetry:
 
         Parameters
         ----------
-        obj, object
+        obj : object
             The object that this class is being instantiated on.
         '''
 
@@ -71,13 +71,13 @@ class TimeTelemetry:
 
         PARAMETERS
         ----------
-        cmd, str.
+        cmd : str.
             The command str, used in the plan message, that is to be applied to
             the object.
 
         RETURNS
         -------
-        Data, dict.
+        Data : dict.
             A dictionary with a keyword 'time', a lower keyword '0' and values
             being a dictionary with keywords 'estimated', 'measured' and
             'timestamp'. The corresponding values are matched lists
@@ -86,7 +86,7 @@ class TimeTelemetry:
             and a corresponding dictionary. The corresponding dictionary has
             keywords 'input', 'measured' and 'time' and a corresponding list
             for each. A final optional keyword for data is 'position', with the
-            lower keyword '0' and a dictioanry with the keywords 'start',
+            lower keyword '0' and a dictionary with the keywords 'start',
             'stop' and 'timestamp'.
         '''
 
@@ -102,10 +102,10 @@ class TimeTelemetry:
 
         PARAMETERS
         ----------
-        cmd, str.
+        cmd : str.
             The command str, used in the plan message, that is to be applied to
             the object
-        data, dict.
+        data : dict.
             A dictionary with the keyword 'time' and a corresponding tuple
             (estimated time, measured time, timestamp). Additional optional
             keywords for each measured attribute and a corresponding tuple
@@ -127,7 +127,7 @@ class EstTime:
 
     Attributes
     ----------
-    'cmd', method.
+    'cmd' : method.
         A method that returns the estimated time it takes to perform 'cmd' on
         the device. (where 'cmd' is the name of any message command that can be
         applied to the device).
@@ -138,7 +138,7 @@ class EstTime:
 
         Parameters
         ----------
-        obj, object
+        obj : object
             The object that this class is being instantiated on.
         '''
         self.obj = obj
@@ -147,10 +147,10 @@ class EstTime:
         '''
         PARAMETERS
         ----------
-        cmd, str.
+        cmd : str.
             The command str, used in the plan message, that is to be applied to
             the object
-        plan_history: dict, optional.
+        plan_history : dict, optional.
             A dictionary containing any values that are to override the current
             values, in the dictionary plan_history['set'], and optionally the
             number of times since the last trigger, in the dictionary
@@ -161,14 +161,14 @@ class EstTime:
             'delta_time', with a value giving the time taken to complete the
             action, and 'timestamp' with a value giving the timestamp for the
             start of the action.
-        record: Boolean, optional
+        record : Boolean, optional
             A boolean indicator to show if this is also a 'record' call, where
             by time information about a completed use of the action is also
             passed in via plan_history (see above for description).
 
         RETURNS
         -------
-        out_time: namedtuple.
+        out_time : namedtuple.
             A namedtuple containing the estimated time (est_time) as the first
             element and the standard deviation (std_dev) as the second element.
        '''
@@ -194,7 +194,7 @@ class EstTime:
 
         PARAMETERS
         ----------
-        plan_history: dict, optional.
+        plan_history : dict, optional.
             A dictionary containing any values that are to override the current
             values, in the dictionary plan_history['set'], and optionally the
             number of times since the last trigger, in the dictionary
@@ -205,18 +205,18 @@ class EstTime:
             'delta_time', with a value giving the time taken to complete the
             action, and 'timestamp' with a value giving the timestamp for the
             start of the action.
-        vals: list, optional.
+        vals : list, optional.
             A list of any required input parameters for this command, it
             matches the structure of the msg.arg list from a plan message.
             Default value is empty list.
-        record: Boolean, optional
+        record : Boolean, optional
             A boolean indicator to show if this is also a 'record' call, where
             by time information about a completed use of the action is also
             passed in via plan_history (see above for description).
 
         RETURNS
         -------
-        stats: namedtuple.
+        stats : namedtuple.
             A namedtuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
@@ -311,7 +311,7 @@ class EstTime:
 
         PARAMETERS
         ----------
-        plan_history: dict, optional.
+        plan_history : dict, optional.
             A dictionary containing any values that are to override the current
             values, in the dictionary plan_history['set'], and optionally the
             number of times since the last trigger, in the dictionary
@@ -322,18 +322,18 @@ class EstTime:
             'delta_time', with a value giving the time taken to complete the
             action, and 'timestamp' with a value giving the timestamp for the
             start of the action.
-        vals: list, optional.
+        vals : list, optional.
             A list of any required input parameters for this command, it
             matches the structure of the msg.arg list from a plan message.
             Default value is empty list.
-        record: Boolean, optional
+        record : Boolean, optional
             A boolean indicator to show if this is also a 'record' call, where
             by time information about a completed use of the action is also
             passed in via plan_history (see above for description).
 
         RETURNS
         -------
-        out_time: namedtuple.
+        out_time : namedtuple.
             A namedtuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
@@ -419,7 +419,7 @@ class EstTime:
 
         PARAMETERS
         ----------
-        plan_history: dict, optional.
+        plan_history : dict, optional.
             A dictionary containing any values that are to override the current
             values, in the dictionary plan_history['set'], and optionally the
             number of times since the last trigger, in the dictionary
@@ -430,18 +430,18 @@ class EstTime:
             'delta_time', with a value giving the time taken to complete the
             action, and 'timestamp' with a value giving the timestamp for the
             start of the action.
-        vals: list, optional.
+        vals : list, optional.
             A list of any required input parameters for this command, it
             matches the structure of the msg.arg list from a plan message.
             Default value is empty list.
-        record: Boolean, optional
+        record : Boolean, optional
             A boolean indicator to show if this is also a 'record' call, where
             by time information about a completed use of the action is also
             passed in via plan_history (see above for description).
 
         RETURNS
         -------
-        out_time: namedtuplr.
+        out_time : namedtuplr.
             A namedtuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
@@ -482,7 +482,7 @@ class EstTime:
 
         PARAMETERS
         ----------
-        plan_history: dict, optional.
+        plan_history : dict, optional.
             A dictionary containing any values that are to override the current
             values, in the dictionary plan_history['set'], and optionally the
             number of times since the last trigger, in the dictionary
@@ -493,18 +493,18 @@ class EstTime:
             'delta_time', with a value giving the time taken to complete the
             action, and 'timestamp' with a value giving the timestamp for the
             start of the action.
-        vals: list, optional.
+        vals : list, optional.
             A list of any required input parameters for this command, it
             matches the structure of the msg.arg list from a plan message.
             Default value is empty list.
-        record: Boolean, optional
+        record : Boolean, optional
             A boolean indicator to show if this is also a 'record' call,
             where by time information about a completed use of the action is
             also passed in via plan_history (see above for description).
 
         RETURNS
         -------
-        out_time: namedtuple.
+        out_time : namedtuple.
             A namedtuple containing the est_time as the first element and the
             std_dev as the second element.
         '''

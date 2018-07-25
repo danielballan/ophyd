@@ -30,12 +30,12 @@ class ADTriggerStatus(DeviceStatus):
         super().__init__(*args, **kwargs)
         self.start_ts = ttime.time()
 
-        #This section below ensures that the status object has all of the info required
-        #for storing telemetry associated with it.
+        # This section below ensures that the status object has all of the info
+        # requiredfor storing telemetry associated with it.
         arg_names = inspect.signature(self.device.est_time.trigger).parameters
         args = []
         for arg_name in arg_names:
-            try: 
+            try:
                 args.append(getattr(self,arg_name))
             except AttributeError:
                 setattr(self, arg_name, getattr(self.device,arg_name).position)
@@ -92,8 +92,8 @@ class ADTriggerStatus(DeviceStatus):
                     time_remaining=time_remaining)
 
     def _finished(self, success = True, **kwargs):
-        '''Informs the status object that it is done and if it succeeded. If it suceeded it also 
-        records the telemetry associated with the trigger.
+        '''Informs the status object that it is done and if it succeeded. If it
+        suceeded it also records the telemetry associated with the trigger.
         '''
         super()._finished(success = success, **kwargs)
         self.finish_ts = ttime.time()

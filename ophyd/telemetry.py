@@ -17,7 +17,7 @@ class TelemetryClass:
 
         self.use_database = False
         # allows for hot swapping between the dictionary (self.telemetry)
-        # and a database.
+        # and a mongo database.
 
         self._client = None
         self.telemetry_db = None
@@ -49,13 +49,13 @@ class TelemetryClass:
 
         PARAMETERS
         ----------
-        obj_name, string.
+        obj_name : string.
             A string that contains the name of the object/device that the
             action was performed on.
-        cmd, string.
+        cmd : string.
             The name of the action performed on the object/device (matches the
             actions defined in a plans msg list).
-        data, dict.
+        data : dict.
             A dictionary with a keyword 'time' and a value being an start_time
             /stop_time tuple. It may also contain optional keywords
             corresponding to the attributes that where set for the action and
@@ -91,16 +91,16 @@ class TelemetryClass:
 
         PARAMETERS
         ----------
-        obj_name, string.
+        obj_name : string.
             A string that contains the name of the object/device that the
             action was performed on.
-        cmd, string.
+        cmd : string.
             The name of the action performed on the object/device (matches the
             actions defined in a plans msg list).
 
         RETURNS
         -------
-        data, dict.
+        data : dict.
             A dictionary with the keyword 'time' and a value being a dictionary
             with keywords 'estimated', 'measured' and 'timestamp' and values
             being a matched list of each. Data may also include keywords

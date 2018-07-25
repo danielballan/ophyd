@@ -37,22 +37,22 @@ class DefaultEstTime:
         '''Estimates the time (est_time) to perform 'set' on this object.
 
         This method returns an estimated time (est_time) to perform set between
-        start pos and target. If telemetry for this action, and any argument
-        values, exist it uses mean values and works out a standard deviation
-        (std_dev). Otherwise it uses the argument values to determine an
-        est_time and returns float('nan') for both est_time and std_dev.
+        start pos and target. If telemetry for this action, and start_pos and
+        target values, exist it uses mean values and works out a standard
+        deviation (std_dev). Otherwise it uses the argument values to determine
+        an est_time and returns float('nan') for std_dev.
 
         PARAMETERS
         ----------
-        start_pos: float or string.
+        start_pos : float or string.
             The start position for the set.
-        target: float or string.
+        target : float or string.
             The end position for the set.
 
         RETURNS
         -------
-        stats: namedtuple.
-            A namedtuple containing the est_time as the first element and the
+        stats : named tuple.
+            A named tuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
         attributes = []
@@ -77,7 +77,7 @@ class DefaultEstTime:
 
         PARAMETER
         ---------
-        status_object: StatusObject.
+        status_object : StatusObject.
             This is a status object that contains information collected about
             the action to be stored in telemetry.
         '''
@@ -98,10 +98,9 @@ class DefaultEstTime:
         '''Estimates the time (est_time) to perform 'trigger' on this object.
 
         This method returns an estimated time (est_time) to perform trigger. If
-        telemetry for this action, and any argument values, exist it uses mean
-        values and works out a standard deviation (std_dev). Otherwise it uses
-        the argument values to determine an est_time and returns float('nan')
-        for both est_time and std_dev.
+        telemetry for this action exist it uses mean values and works out a
+        standard deviation (std_dev). Otherwise it uses the argument values to
+        determine an est_time and returns float('nan') std_dev.
 
         PARAMETERS
         ----------
@@ -109,8 +108,8 @@ class DefaultEstTime:
 
         RETURNS
         -------
-        stats: namedtuple.
-            A namedtuple containing the est_time as the first element and the
+        stats : named tuple.
+            A named tuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
 
@@ -133,7 +132,7 @@ class DefaultEstTime:
 
         PARAMETER
         ---------
-        status_object: StatusObject.
+        status_object : StatusObject.
             This is a status object that contains information collected about
             the action to be stored in telemetry.
         '''
@@ -152,9 +151,9 @@ class DefaultEstTime:
         '''Estimates the time (est_time) to perform 'stage' on this object.
 
         This method returns an estimated time (est_time) to perform stage. If
-        telemetry for this action, and any argument values, exist it uses mean
-        values and works out a standard deviation (std_dev). Otherwise it uses
-        the argument values to determine an est_time and returns float('nan')
+        telemetry for this action exist it uses mean values and works out a
+        standard deviation (std_dev). Otherwise it uses the argument values to
+        determine an est_time and returns float('nan')
         for both est_time and std_dev.
 
         PARAMETERS
@@ -163,8 +162,8 @@ class DefaultEstTime:
 
         RETURNS
         -------
-        stats: namedtuple.
-            A namedtuple containing the est_time as the first element and the
+        stats : named tuple.
+            A named tuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
 
@@ -187,7 +186,7 @@ class DefaultEstTime:
 
         PARAMETER
         ---------
-        status_object: StatusObject.
+        status_object : StatusObject.
             This is a status object that contains information collected about
             the action to be stored in telemetry.
         '''
@@ -207,10 +206,9 @@ class DefaultEstTime:
         '''Estimates the time (est_time) to perform 'unstage' on this object.
 
         This method returns an estimated time (est_time) to perform unstage.
-        If telemetry for this action, and any argument values, exist it uses
-        mean values and works out a standard deviation (std_dev). Otherwise
-        it uses the argument values to determine an est_time and returns
-        float('nan') for both est_time and std_dev.
+        If telemetry for this action exist it uses mean values and works out a
+        standard deviation (std_dev). Otherwise it uses the argument values to
+        determine an est_time and returns float('nan') for std_dev.
 
         PARAMETERS
         ----------
@@ -218,8 +216,8 @@ class DefaultEstTime:
 
         RETURNS
         -------
-        stats: namedtuple.
-            A namedtuple containing the est_time as the first element and the
+        stats : named tuple.
+            A named tuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
 
@@ -242,7 +240,7 @@ class DefaultEstTime:
 
         PARAMETER
         ---------
-        status_object: StatusObject.
+        status_object : StatusObject.
             This is a status object that contains information collected about
             the action to be stored in telemetry.
         '''
@@ -329,26 +327,26 @@ class EpicsMotorEstTime(DefaultEstTime):
         '''Estimates the time (est_time) to perform 'set' on this object.
 
         This method returns an estimated time (est_time) to perform set between
-        start position and stop position. If telemetry for this action, and any
+        start position and stop position. If telemetry for this action, and the
         argument values, exist it uses mean values and works out a standard
         deviation (std_dev). Otherwise it uses the argument values to determine
-        an est_time and returns float('nan') for both est_time and std_dev.
+        an est_time and returns float('nan') for std_dev.
 
         PARAMETERS
         ----------
-        start_pos: float or str.
+        start_pos : float or str.
             The start position for the set.
-        target: float or str.
+        target : float or str.
             The end position for the set.
-        veloctiy: float.
+        veloctiy : float.
             The setpoint of the velocity at which the motor moves.
-        settle_time: float.
+        settle_time : float.
             The amount of time that the device will 'wait' after performing the
             move.
 
         RETURNS
         -------
-        stats: namedtuple.
+        stats : namedtuple.
             A namedtuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
@@ -480,28 +478,28 @@ class ADEstTime(DefaultEstTime):
         '''Estimates the time (est_time) to perform 'trigger' on this object.
 
         This method returns an estimated time (est_time) to perform trigge. If
-        telemetry for this action, and any argument values, exist it uses mean
+        telemetry for this action, and the argument values, exist it uses mean
         values and works out a standard deviation (std_dev). Otherwise it uses
         the argument values to determine an est_time and returns float('nan')
         for both est_time and std_dev.
 
         PARAMETERS
         ----------
-        acquire_period: float.
+        acquire_period : float.
             The acquire period used if trigger_mode is 'fixed'.
-        acquire_time: float.
+        acquire_time : float.
             The acquire time used if trigger_mode is not 'fixed'.
-        trigger_mode: string.
+        trigger_mode : string.
             The trigger_mode.
-        num_images: int.
+        num_images : int.
             The number of images per step.
-        settle_time: float.
+        settle_time : float.
             The amount of time that the device will 'wait' after performing
             the move.
 
         RETURNS
         -------
-        stats: namedtuple.
+        stats : namedtuple.
             A namedtuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
@@ -542,7 +540,7 @@ class ADEstTime(DefaultEstTime):
 
         PARAMETER
         ---------
-        status_object: StatusObject.
+        status_object : StatusObject.
             This is a status object that contains information collected about
             the action to be stored in telemetry.
         '''
@@ -574,9 +572,9 @@ class ADEstTime(DefaultEstTime):
 
         PARAMETERS
         ----------
-        telemetry: dict.
+        telemetry : dict.
             The telemetry dictionary to extract information out of.
-        attributes: list of named tuples, optional.
+        attributes : list of named tuples, optional.
             A list of named tuples relating to a specific attribute,
             containing (name, start, stop) values. By default this is None and
             returns the time for every point in the telemetry list. If the
@@ -585,7 +583,7 @@ class ADEstTime(DefaultEstTime):
 
         RETURNS
         -------
-        out_list, list
+        out_list : list
             A list containing the velocity for each action.
         '''
 
