@@ -158,8 +158,7 @@ class Component:
 
     def __repr__(self):
 
-        kw_str = ', '.join('{}={!r}'.format(k, v) for k, v in
-                           self.kwargs.items()
+        kw_str = ', '.join('{}={!r}'.format(k, v) for k, v in self.kwargs.items() \
                            if k not in ['read_attrs', 'configuration_attrs'])
 
         if self.suffix is not None:
@@ -486,15 +485,6 @@ class BlueskyInterface:
             as complete when the device is ready to be read.
 
         """
-        # setup lines for saving telemetry
-        plan_history = {}
-        plan_history['time'] = {'timestamp': ttime.time()}
-
-        # lines for saving telemetry
-        plan_history['time']['delta_time'] = ttime.time() - \
-            plan_history['time']['timestamp']
-        self.est_time('trigger', plan_history=plan_history, record=True)
-
         pass
 
     def read(self) -> OrderedDictType[str, Dict[str, Any]]:
@@ -522,7 +512,6 @@ class BlueskyInterface:
             with the keys ``{'value', 'timestamp'}``
 
         """
-
         return OrderedDict()
 
     def describe(self) -> OrderedDictType[str, Dict[str, Any]]:
@@ -570,7 +559,6 @@ class BlueskyInterface:
             list including self and all child devices staged
 
         """
-
         if self._staged == Staged.no:
             pass  # to short-circuit checking individual cases
         elif self._staged == Staged.yes:
@@ -627,7 +615,6 @@ class BlueskyInterface:
             raise
         else:
             self._staged = Staged.yes
-
         return devices_staged
 
     def unstage(self) -> List[object]:
@@ -648,7 +635,6 @@ class BlueskyInterface:
             list including self and all child devices unstaged
 
         """
-
         self.log.debug("Unstaging %s", self.name)
         self._staged = Staged.partially
         devices_unstaged = []
@@ -670,7 +656,6 @@ class BlueskyInterface:
         devices_unstaged.append(self)
 
         self._staged = Staged.no
-
         return devices_unstaged
 
     def pause(self) -> None:
@@ -1015,7 +1000,6 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
 
     @doc_annotation_forwarder(BlueskyInterface)
     def read(self):
-
         res = super().read()
         for component_name in self.component_names:
             # this might be lazy and get the Cpt
@@ -1024,7 +1008,6 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
                 # this forces us to get the real version
                 component = getattr(self, component_name)
                 res.update(component.read())
-
         return res
 
     def read_configuration(self) -> OrderedDictType[str, Dict[str, Any]]:
@@ -1107,7 +1090,6 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
     @doc_annotation_forwarder(BlueskyInterface)
     def trigger(self):
         """Start acquisition"""
-
         signals = self.trigger_signals
         if len(signals) > 1:
             raise NotImplementedError('More than one trigger signal is not '
@@ -1115,7 +1097,6 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
         status = DeviceStatus(self)
         if not signals:
             status._finished()
-
             return status
 
         acq_signal, = signals
@@ -1130,7 +1111,6 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
             self._done_acquiring()
 
         acq_signal.put(1, wait=False, callback=done_acquisition)
-
         return status
 
     def stop(self, *, success=False):
@@ -1294,7 +1274,7 @@ class Device(BlueskyInterface, OphydObject, metaclass=ComponentMeta):
             getattr(self._parent, value).kind &= ~self._remove_kind
 
         def __contains__(self, value):
-            return value in self.__internal_list()
+            return getattr(self._parent, value).kind & self._kind
 
         def __iter__(self):
             yield from self.__internal_list()

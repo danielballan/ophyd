@@ -108,11 +108,6 @@ class SynSignal(Signal):
 
     def trigger(self):
         delay_time = self.exposure_time
-
-        # setting up the dictinary for the statistics gathering.
-        plan_history = {}
-        plan_history['time'] = {'timestamp': ttime.time()}
-
         if delay_time:
             st = DeviceStatus(device=self)
             if self.loop.is_running():
@@ -130,10 +125,6 @@ class SynSignal(Signal):
                     st._finished()
 
                 threading.Thread(target=sleep_and_finish, daemon=True).start()
-
-            plan_history['time']['delta_time'] = ttime.time() - \
-                plan_history['time']['timestamp']
-            self.est_time('trigger', plan_history=plan_history, record=True)
             return st
         else:
             self.put(self._func())
@@ -750,9 +741,6 @@ class SynSignalWithRegistry(SynSignal):
         self._asset_docs_cache.append(('resource', resource))
 
     def trigger(self):
-        # setup dictionary for telemetry
-        plan_history = {}
-        plan_history['time'] = {'timestamp': ttime.time()}
 
         super().trigger()
         # save file stash file name
@@ -783,11 +771,6 @@ class SynSignalWithRegistry(SynSignal):
             # a reference to Registry.
             reading['value'] = datum_id
             self._result[name] = reading
-
-        # save telemetry
-        plan_history['time']['delta_time'] = ttime.time() - \
-            plan_history['time']['timestamp']
-        self.est_time('trigger', plan_history=plan_history, record=True)
 
         return NullStatus()
 

@@ -114,7 +114,7 @@ class PluginBase(ADBase):
 
         a convenience method for adding ```('enable', 0)`` to stage_sigs
         """
-        self.stage_sigs['enable'] = 0
+        self.stage_sigs['enable'] = 0 
 
     def ensure_blocking(self):
         """
@@ -668,6 +668,7 @@ class TransformPlugin(PluginBase):
                      doc='Array size',
                      default_read_attrs=('height', 'width', 'depth'))
 
+
     name_ = C(EpicsSignal, 'Name')
     origin_location = C(SignalWithRBV, 'OriginLocation')
     t1_max_size = DDC(ad_group(EpicsSignal,
@@ -677,12 +678,14 @@ class TransformPlugin(PluginBase):
                       doc='Transform 1 max size',
                       default_read_attrs=('size0', 'size1', 'size2'))
 
+
     t2_max_size = DDC(ad_group(EpicsSignal,
                                (('size0', 'T2MaxSize0'),
                                 ('size1', 'T2MaxSize1'),
                                 ('size2', 'T2MaxSize2'))),
                       doc='Transform 2 max size',
                       default_read_attrs=('size0', 'size1', 'size2'))
+
 
     t3_max_size = DDC(ad_group(EpicsSignal,
                                (('size0', 'T3MaxSize0'),
@@ -691,12 +694,14 @@ class TransformPlugin(PluginBase):
                       doc='Transform 3 max size',
                       default_read_attrs=('size0', 'size1', 'size2'))
 
+
     t4_max_size = DDC(ad_group(EpicsSignal,
                                (('size0', 'T4MaxSize0'),
                                 ('size1', 'T4MaxSize1'),
                                 ('size2', 'T4MaxSize2'))),
                       doc='Transform 4 max size',
                       default_read_attrs=('size0', 'size1', 'size2'))
+
 
     types = DDC(ad_group(EpicsSignal,
                          (('type1', 'Type1'),
@@ -705,6 +710,7 @@ class TransformPlugin(PluginBase):
                           ('type4', 'Type4'))),
                 doc='Transform types',
                 default_read_attrs=('type1', 'type2', 'type3', 'type4'))
+
 
 
 class FilePlugin(PluginBase, GenerateDatumInterface):
@@ -832,6 +838,7 @@ class HDF5Plugin(FilePlugin):
                          doc='Extra dimension sizes (XYN)',
                          default_read_attrs=('size_x', 'size_y', 'size_n'))
 
+
     io_speed = C(EpicsSignal, 'IOSpeed')
     num_col_chunks = C(SignalWithRBV, 'NumColChunks')
     num_data_bits = C(SignalWithRBV, 'NumDataBits')
@@ -856,8 +863,8 @@ class HDF5Plugin(FilePlugin):
         sigs = OrderedDict([(self.parent.cam.array_callbacks, 1),
                             (self.parent.cam.image_mode, 'Single'),
                             (self.parent.cam.trigger_mode, 'Internal'),
-                            # in case the acquisition time is set very long...
-                            (self.parent.cam.acquire_time, 1),
+                            # just in case tha acquisition time is set very long...
+                            (self.parent.cam.acquire_time , 1),
                             (self.parent.cam.acquire_period, 1),
                             (self.parent.cam.acquire, 1)])
 

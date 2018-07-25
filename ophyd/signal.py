@@ -74,18 +74,8 @@ class Signal(OphydObject):
         '''Call that is used by bluesky prior to read()'''
         # NOTE: this is a no-op that exists here for bluesky purposes
         #       it may need to be moved in the future
-
-        # set up the telemetry dictionary here
-        plan_history = {}
-        plan_history['time'] = {'timestamp': time.time()}
-
         d = Status(self)
         d._finished()
-
-        # save telemetry here
-        plan_history['time']['delta_time'] = time.time() - \
-            plan_history['time']['timestamp']
-        self.est_time('trigger', plan_history=plan_history, record=True)
         return d
 
     def wait_for_connection(self, timeout=0.0):
@@ -165,25 +155,21 @@ class Signal(OphydObject):
             This status object will be finished upon return in the
             case of basic soft Signals
         '''
-        # set up the telemetry dictionary
-        plan_dictionary = {}
-        plan_dictionary['time'] = {'timestamp': time.time()}
-
         def set_thread():
             try:
                 set_and_wait(self, value, timeout=timeout, atol=self.tolerance,
                              rtol=self.rtolerance)
             except TimeoutError:
                 self.log.debug('set_and_wait(%r, %s) timed out', self.name,
-                               value)
+                                value)
                 success = False
             except Exception as ex:
-                self.log.debug('set_and_wait(%r, %s) failed', self.name,
-                               value, exc_info=ex)
+                self.log.debug('set_and_wait(%r, %s) failed', self.name, value,
+                             exc_info=ex)
                 success = False
             else:
-                self.log.debug('set_and_wait(%r, %s) succeeded => %s',
-                               self.name, value, self.value)
+                self.log.debug('set_and_wait(%r, %s) succeeded => %s', self.name,
+                             value, self.value)
                 success = True
                 if settle_time is not None:
                     time.sleep(settle_time)
@@ -203,10 +189,6 @@ class Signal(OphydObject):
         self._set_thread = self.cl.thread_class(target=set_thread)
         self._set_thread.daemon = True
         self._set_thread.start()
-
-        plan_dictionary['time']['delta_time'] = time.time() -\
-            plan_dictionary['time']['timestamp']
-        self.est_time('set', plan_dictionary=plan_dictionary, record=True)
         return self._status
 
     @property
@@ -226,7 +208,6 @@ class Signal(OphydObject):
         -------
             dict
         '''
-
         return {self.name: {'value': self.get(),
                             'timestamp': self.timestamp}}
 
@@ -955,10 +936,6 @@ class EpicsSignal(EpicsSignalBase):
         --------
         Signal.set
         '''
-        # set up the telemetry dictionary here
-        plan_history = {}
-        plan_history['time'] = {'timestamp': time.time()}
-
         if not self._put_complete:
             return super().set(value, timeout=timeout, settle_time=settle_time)
 
@@ -970,12 +947,6 @@ class EpicsSignal(EpicsSignalBase):
             st._finished(success=True)
 
         self.put(value, use_complete=True, callback=put_callback)
-
-        # save the telemetry here
-        plan_history['time']['delta_time'] = time.time() - \
-            plan_history['time']['timestamp']
-        self.est_time('set', plan_history=plan_history, record=True)
-
         return st
 
     @property
