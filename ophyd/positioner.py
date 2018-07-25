@@ -81,7 +81,7 @@ class PositionerBase(OphydObject):
         status : StatusBase
             Status object to indicate when the motion / set is done.
         """
-          return self.move(new_position, wait=wait, moved_cb=moved_cb,
+        return self.move(new_position, wait=wait, moved_cb=moved_cb,
                          timeout=timeout)
 
     def stop(self, *, success: bool =False):

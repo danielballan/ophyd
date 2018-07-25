@@ -161,7 +161,7 @@ class Signal(OphydObject):
                              rtol=self.rtolerance)
             except TimeoutError:
                 self.log.debug('set_and_wait(%r, %s) timed out', self.name,
-                                value)
+                             value)
                 success = False
             except Exception as ex:
                 self.log.debug('set_and_wait(%r, %s) failed', self.name, value,

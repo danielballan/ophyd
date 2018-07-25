@@ -114,7 +114,7 @@ class PluginBase(ADBase):
 
         a convenience method for adding ```('enable', 0)`` to stage_sigs
         """
-        self.stage_sigs['enable'] = 0 
+        self.stage_sigs['enable'] = 0  
 
     def ensure_blocking(self):
         """
