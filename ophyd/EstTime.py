@@ -334,8 +334,10 @@ class EpicsMotorEstTime(DefaultEstTime):
 
         PARAMETERS
         ----------
-        start_pos : float or str.
-            The start position for the set.
+        start_pos : float, str or tuple.
+            The start position for the set, it may be a tuple of the form
+            (args, kwargs) as this is the generic 'set' input, if this is the
+            case it takes args[0] as the value.
         target : float or str.
             The end position for the set.
         veloctiy : float.
@@ -350,6 +352,11 @@ class EpicsMotorEstTime(DefaultEstTime):
             A namedtuple containing the est_time as the first element and the
             std_dev as the second element.
         '''
+
+        # if the start_pos is a tuple
+        if type(start_pos) is tuple:
+            start_pos = start_pos[0][0]
+
 
         attributes = [_AttrTuple('velocity', velocity, None)]
 
@@ -380,7 +387,7 @@ class EpicsMotorEstTime(DefaultEstTime):
         else:
 
             est_time = abs(start_pos - target)/velocity + settle_time
-            out_time = _TimeStats(est_time, float('nan'))
+            out_time = _TimeStats(est_time, float('NaN'))
 
         return out_time
 
