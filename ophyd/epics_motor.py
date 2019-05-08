@@ -83,8 +83,6 @@ class EpicsMotor(Device, PositionerBase):
         # Make the default alias for the user_readback the name of the
         # motor itself.
         self.user_readback.name = self.name
-        self.motor_done_move.subscribe(self._move_changed)
-        self.user_readback.subscribe(self._pos_changed)
         self.est_time = EpicsMotorEstTime(self.name)
 
     @property
