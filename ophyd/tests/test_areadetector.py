@@ -1,19 +1,24 @@
-import time
+import datetime
 import logging
+import os
+import shutil
+import time
+from unittest.mock import Mock
+
+import numpy as np
 import pytest
 from io import StringIO
 from pathlib import PurePath, Path
-from ophyd.ophydobj import Kind
-from ophyd import (SimDetector, SingleTrigger, Component,
-                   DynamicDeviceComponent)
-from ophyd.areadetector.plugins import (ImagePlugin, StatsPlugin,
-                                        ColorConvPlugin,
-                                        ProcessPlugin, OverlayPlugin,
-                                        ROIPlugin, TransformPlugin,
-                                        NetCDFPlugin, TIFFPlugin, JPEGPlugin,
-                                        HDF5Plugin,
-                                        MagickPlugin)
 
+from ophyd.utils.paths import make_dir_tree
+from ophyd import (SimDetector, SingleTrigger, Component, Device,
+                   DynamicDeviceComponent, EpicsSignalRO, Kind, wait)
+from ophyd.areadetector.plugins import (ImagePlugin, StatsPlugin,
+                                        ColorConvPlugin, ProcessPlugin,
+                                        OverlayPlugin, ROIPlugin,
+                                        TransformPlugin, NetCDFPlugin,
+                                        TIFFPlugin, JPEGPlugin, HDF5Plugin)
+from ophyd.areadetector.base import NDDerivedSignal
 from ophyd.areadetector.filestore_mixins import (
     FileStoreTIFF, FileStoreIterativeWrite,
     FileStoreHDF5)
@@ -23,12 +28,11 @@ from ophyd.areadetector.filestore_mixins import (
 from ophyd.areadetector.plugins import PluginBase
 from ophyd.areadetector.util import stub_templates
 from ophyd.device import (Component as Cpt, )
+from ophyd.signal import Signal
 import uuid
-import os
+import epics
 
 logger = logging.getLogger(__name__)
-
-prefix = 'XF:31IDA-BI{Cam:Tbl}'
 ad_path = '/epics/support/areaDetector/1-9-1/ADApp/Db/'
 
 
@@ -81,19 +85,27 @@ def _recursive_subclasses(cls):
              for g in _recursive_subclasses(s)])
 
 
-def test_basic():
+def test_basic(cleanup, ad_prefix):
     class MyDetector(SingleTrigger, SimDetector):
         tiff1 = Cpt(TIFFPlugin, 'TIFF1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    print(det.tiff1.plugin_type)
+    cleanup.add(det)
+
     det.wait_for_connection()
+
+    det.cam.acquire_time.put(0.5)
+    det.cam.acquire_period.put(0.5)
+    det.cam.num_images.put(1)
+    det.cam.image_mode.put(det.cam.ImageMode.SINGLE)
     det.stage()
     st = det.trigger()
-    while not st.done:
-        time.sleep(.1)
+    wait(st, timeout=5)
     det.unstage()
 
 
+@pytest.mark.skipif('not os.path.exists(ad_path)')
 def test_stubbing():
     try:
         for line in stub_templates(ad_path):
@@ -103,8 +115,9 @@ def test_stubbing():
         pass
 
 
-def test_detector():
-    det = SimDetector(prefix, name='test')
+def test_detector(ad_prefix, cleanup):
+    det = SimDetector(ad_prefix, name='test')
+    cleanup.add(det)
 
     det.find_signal('a', f=StringIO())
     det.find_signal('a', use_re=True, f=StringIO())
@@ -136,12 +149,14 @@ def test_detector():
     det.report
 
 
-def test_tiff_plugin():
-    # det = AreaDetector(prefix)
+def test_tiff_plugin(ad_prefix, cleanup):
+    # det = AreaDetector(ad_prefix)
     class TestDet(SimDetector):
         p = Cpt(TIFFPlugin, 'TIFF1:')
 
-    det = TestDet(prefix, name='test')
+    det = TestDet(ad_prefix, name='test')
+    cleanup.add(det)
+
     plugin = det.p
 
     plugin.file_template.put('%s%s_%3.3d.tif')
@@ -150,12 +165,14 @@ def test_tiff_plugin():
     plugin
 
 
-def test_hdf5_plugin():
+def test_hdf5_plugin(ad_prefix, cleanup):
 
     class MyDet(SimDetector):
         p = Cpt(HDF5Plugin, suffix='HDF1:')
 
-    d = MyDet(prefix, name='d')
+    d = MyDet(ad_prefix, name='d')
+    cleanup.add(d)
+
     d.p.file_path.put('/tmp')
     d.p.file_name.put('--')
     d.p.warmup()
@@ -165,34 +182,38 @@ def test_hdf5_plugin():
     d.unstage()
 
 
-def test_subclass():
+def test_subclass(ad_prefix, cleanup):
     class MyDetector(SimDetector):
         tiff1 = Cpt(TIFFPlugin, 'TIFF1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    cleanup.add(det)
     det.wait_for_connection()
 
     print(det.describe())
     print(det.tiff1.capture.describe())
 
 
-def test_getattr():
+def test_getattr(ad_prefix, cleanup):
     class MyDetector(SimDetector):
         tiff1 = Cpt(TIFFPlugin, 'TIFF1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    cleanup.add(det)
     assert getattr(det, 'tiff1.name') == det.tiff1.name
     assert getattr(det, 'tiff1') is det.tiff1
     # raise
     # TODO subclassing issue
 
 
-def test_invalid_plugins():
+def test_invalid_plugins(ad_prefix, cleanup):
     class MyDetector(SingleTrigger, SimDetector):
         tiff1 = Cpt(TIFFPlugin, 'TIFF1:')
         stats1 = Cpt(StatsPlugin, 'Stats1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    cleanup.add(det)
+
     det.wait_for_connection()
     det.tiff1.nd_array_port.put(det.cam.port_name.get())
     det.stats1.nd_array_port.put('AARDVARK')
@@ -206,12 +227,13 @@ def test_invalid_plugins():
     assert ['AARDVARK'] == det.missing_plugins()
 
 
-def test_validete_plugins_no_portname():
+def test_validate_plugins_no_portname(ad_prefix, cleanup):
     class MyDetector(SingleTrigger, SimDetector):
         roi1 = Cpt(ROIPlugin, 'ROI1:')
         over1 = Cpt(OverlayPlugin, 'Over1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    cleanup.add(det)
 
     det.roi1.nd_array_port.put(det.cam.port_name.get())
     det.over1.nd_array_port.put(det.roi1.port_name.get())
@@ -219,13 +241,14 @@ def test_validete_plugins_no_portname():
     det.validate_asyn_ports()
 
 
-def test_get_plugin_by_asyn_port():
+def test_get_plugin_by_asyn_port(ad_prefix, cleanup):
     class MyDetector(SingleTrigger, SimDetector):
         tiff1 = Cpt(TIFFPlugin, 'TIFF1:')
         stats1 = Cpt(StatsPlugin, 'Stats1:')
         roi1 = Cpt(ROIPlugin, 'ROI1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    cleanup.add(det)
 
     det.tiff1.nd_array_port.put(det.cam.port_name.get())
     det.roi1.nd_array_port.put(det.cam.port_name.get())
@@ -237,14 +260,45 @@ def test_get_plugin_by_asyn_port():
     assert det.cam is det.get_plugin_by_asyn_port(det.cam.port_name.get())
     assert det.roi1 is det.get_plugin_by_asyn_port(det.roi1.port_name.get())
 
+    # Support nested plugins
+    class PluginGroup(Device):
+        tiff1 = Cpt(TIFFPlugin, 'TIFF1:')
 
-def test_read_configuration_smoke():
+    class MyDetector(SingleTrigger, SimDetector):
+        plugins = Cpt(PluginGroup, '')
+        roi1 = Cpt(ROIPlugin, 'ROI1:')
+        stats1 = Cpt(StatsPlugin, 'Stats1:')
+
+    nested_det = MyDetector(ad_prefix, name='nested_test')
+
+    nested_det.stats1.nd_array_port.put(nested_det.roi1.port_name.get())
+    nested_det.plugins.tiff1.nd_array_port.put(nested_det.cam.port_name.get())
+    nested_det.roi1.nd_array_port.put(nested_det.cam.port_name.get())
+    nested_det.stats1.nd_array_port.put(nested_det.roi1.port_name.get())
+
+    det.validate_asyn_ports()
+
+    tiff = nested_det.plugins.tiff1
+    assert tiff is nested_det.get_plugin_by_asyn_port(tiff.port_name.get())
+
+
+def test_visualize_asyn_digraph_smoke(ad_prefix, cleanup):
+    # setup sim detector
+    det = SimDetector(ad_prefix, name='test')
+    cleanup.add(det)
+    # smoke test
+    det.visualize_asyn_digraph()
+
+
+def test_read_configuration_smoke(ad_prefix, cleanup):
     class MyDetector(SingleTrigger, SimDetector):
         stats1 = Cpt(StatsPlugin, 'Stats1:')
         proc1 = Cpt(ProcessPlugin, 'Proc1:')
         roi1 = Cpt(ROIPlugin, 'ROI1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    cleanup.add(det)
+
     det.proc1.nd_array_port.put(det.cam.port_name.get())
     det.roi1.nd_array_port.put(det.proc1.port_name.get())
     det.stats1.nd_array_port.put(det.roi1.port_name.get())
@@ -261,13 +315,15 @@ def test_read_configuration_smoke():
     assert set(conf) == set(desc)
 
 
-def test_str_smoke():
+def test_str_smoke(ad_prefix, cleanup):
     class MyDetector(SingleTrigger, SimDetector):
         stats1 = Cpt(StatsPlugin, 'Stats1:')
         proc1 = Cpt(ProcessPlugin, 'Proc1:')
         roi1 = Cpt(ROIPlugin, 'ROI1:')
 
-    det = MyDetector(prefix, name='test')
+    det = MyDetector(ad_prefix, name='test')
+    cleanup.add(det)
+
     det.read_attrs = ['stats1']
     det.stats1.read_attrs = ['mean_value']
     det.stats1.mean_value.kind = Kind.hinted
@@ -275,7 +331,7 @@ def test_str_smoke():
     str(det)
 
 
-def test_default_configuration_smoke():
+def test_default_configuration_smoke(ad_prefix, cleanup):
     class MyDetector(SimDetector):
         imageplugin = Cpt(ImagePlugin, ImagePlugin._default_suffix)
         statsplugin = Cpt(StatsPlugin, StatsPlugin._default_suffix)
@@ -289,9 +345,10 @@ def test_default_configuration_smoke():
         jpegplugin = Cpt(JPEGPlugin, JPEGPlugin._default_suffix)
         # nexusplugin = Cpt(NexusPlugin, NexusPlugin._default_suffix)
         hdf5plugin = Cpt(HDF5Plugin, HDF5Plugin._default_suffix)
-        magickplugin = Cpt(MagickPlugin, MagickPlugin._default_suffix)
+        # magickplugin = Cpt(MagickPlugin, MagickPlugin._default_suffix)
 
-    d = MyDetector(prefix, name='d')
+    d = MyDetector(ad_prefix, name='d')
+    cleanup.add(d)
     d.stage()
     {n: getattr(d, n).read_configuration() for n in d.component_names}
     {n: getattr(d, n).describe_configuration() for n in d.component_names}
@@ -301,21 +358,45 @@ def test_default_configuration_smoke():
 @pytest.mark.parametrize('plugin',
                          _recursive_subclasses(PluginBase))
 def test_default_configuration_attrs(plugin):
-    for k in plugin._default_configuration_attrs:
+    configuration_attrs = plugin._default_configuration_attrs
+    if configuration_attrs is None:
+        pytest.skip('Configuration attrs unset')
+    for k in configuration_attrs:
         assert hasattr(plugin, k)
         assert isinstance(getattr(plugin, k),
                           (Component, DynamicDeviceComponent))
 
 
+@pytest.fixture(scope='function')
+def data_paths(request):
+    def clean_dirs():
+        shutil.rmtree('/tmp/data1')
+        os.unlink('/tmp/data2')
+
+    try:
+        clean_dirs()
+    except Exception:
+        ...
+
+    now = datetime.datetime.now()
+
+    for year_offset in [-1, 0, 1]:
+        make_dir_tree(now.year + year_offset,
+                      base_path='/tmp/data1')
+
+    os.symlink('/tmp/data1', '/tmp/data2')
+    request.addfinalizer(clean_dirs)
+
+
 @pytest.mark.parametrize('root,wpath,rpath,check_files',
-                         ((None, '/data/%Y/%m/%d', None, False),
-                          (None, '/data/%Y/%m/%d', None, False),
-                          ('/data', '%Y/%m/%d', None, False),
-                          ('/data', '/data/%Y/%m/%d', '%Y/%m/%d', False),
-                          ('/', '/data/%Y/%m/%d', None, False),
-                          ('/tmp/data', '/data/%Y/%m/%d', '%Y/%m/%d', True)
+                         ((None, '/tmp/data1/%Y/%m/%d', None, False),
+                          (None, '/tmp/data1/%Y/%m/%d', None, False),
+                          ('/tmp/data1', '%Y/%m/%d', None, False),
+                          ('/tmp/data1', '/tmp/data1/%Y/%m/%d', '%Y/%m/%d', False),
+                          ('/', '/tmp/data1/%Y/%m/%d', None, False),
+                          ('/tmp/data2', '/tmp/data1/%Y/%m/%d', '%Y/%m/%d', True)
                           ))
-def test_fstiff_plugin(root, wpath, rpath, check_files):
+def test_fstiff_plugin(data_paths, ad_prefix, root, wpath, rpath, check_files, cleanup):
     fs = DummyFS()
     fs2 = DummyFS()
     if check_files:
@@ -331,7 +412,8 @@ def test_fstiff_plugin(root, wpath, rpath, check_files):
                     read_path_template=rpath,
                     root=root, reg=fs)
     target_root = root or '/'
-    det = MyDetector(prefix, name='det')
+    det = MyDetector(ad_prefix, name='det')
+    cleanup.add(det)
     det.read_attrs = ['tiff1']
     det.tiff1.read_attrs = []
 
@@ -364,16 +446,26 @@ def test_fstiff_plugin(root, wpath, rpath, check_files):
             assert Path(fn).exists()
 
 
+@pytest.fixture
+def h5py():
+    try:
+        import h5py
+    except ImportError as ex:
+        raise pytest.skip('h5py unavailable') from ex
+
+    return h5py
+
+
 @pytest.mark.parametrize('root,wpath,rpath,check_files',
-                         ((None, '/data/%Y/%m/%d', None, False),
-                          (None, '/data/%Y/%m/%d', None, False),
-                          ('/data', '%Y/%m/%d', None, False),
-                          ('/data', '/data/%Y/%m/%d', '%Y/%m/%d', False),
-                          ('/', '/data/%Y/%m/%d', None, False),
-                          ('/tmp/data', '/data/%Y/%m/%d', '%Y/%m/%d', True)
+                         ((None, '/tmp/data1/%Y/%m/%d', None, False),
+                          (None, '/tmp/data1/%Y/%m/%d', None, False),
+                          ('/tmp/data1', '%Y/%m/%d', None, False),
+                          ('/tmp/data1', '/tmp/data1/%Y/%m/%d', '%Y/%m/%d', False),
+                          ('/', '/tmp/data1/%Y/%m/%d', None, False),
+                          ('/tmp/data2', '/tmp/data1/%Y/%m/%d', '%Y/%m/%d', True)
                           ))
-def test_fshdf_plugin(root, wpath, rpath, check_files):
-    pytest.skip('hdf5 plugin is busted with docker images')
+def test_fshdf_plugin(h5py, data_paths, ad_prefix, root, wpath, rpath,
+                      check_files, cleanup):
     fs = DummyFS()
     if check_files:
         fh = pytest.importorskip('databroker.assets.handlers')
@@ -388,7 +480,8 @@ def test_fshdf_plugin(root, wpath, rpath, check_files):
                    read_path_template=rpath,
                    root=root, reg=fs)
     target_root = root or '/'
-    det = MyDetector(prefix, name='det')
+    det = MyDetector(ad_prefix, name='det')
+    cleanup.add(det)
     det.read_attrs = ['hdf1']
     det.hdf1.read_attrs = []
     det.cam.acquire_time.put(.1)
@@ -425,7 +518,8 @@ def test_fshdf_plugin(root, wpath, rpath, check_files):
             assert Path(fn).exists()
 
 
-def test_many_connect():
+@pytest.mark.xfail
+def test_many_connect(ad_prefix, cleanup):
     import gc
     fs = DummyFS()
 
@@ -439,8 +533,19 @@ def test_many_connect():
                    read_path_template='',
                    root='/', reg=fs)
 
+    try:
+        from caproto.threading import client
+    except ImportError:
+        # caproto unavailable on python 3.5
+        pass
+    else:
+        if client.SEARCH_MAX_DATAGRAM_BYTES > 1450:
+            # old caproto compatibility - later versions lower to standardish
+            # MTU-levels
+            client.SEARCH_MAX_DATAGRAM_BYTES = 1450
+
     def tester():
-        det = MyDetector(prefix, name='det')
+        det = MyDetector(ad_prefix, name='det')
         print('made detector')
         try:
             print('*'*25)
@@ -451,9 +556,44 @@ def test_many_connect():
         except AttributeError:
             # must be pyepics
             pass
+        det.destroy()
         del det
         gc.collect()
 
     for j in range(5):
         print(j)
         tester()
+
+
+def test_ndderivedsignal_with_scalars():
+    sig = Signal(value=np.zeros(12), name='zeros')
+    shaped = NDDerivedSignal(sig, shape=(4, 3), num_dimensions=2, name='shaped')
+    shaped.derived_shape == (4, 3)
+    shaped.derived_ndims == 2
+    assert shaped.get().shape == (4, 3)
+    # Describe returns list
+    assert shaped.describe()[shaped.name]['shape'] == [4, 3]
+    shaped.put(np.ones((4, 3)))
+    assert all(sig.get() == np.ones(12))
+
+
+def test_ndderivedsignal_with_parent():
+
+    class Detector(Device):
+        flat_image = Component(Signal, value=np.ones(12))
+        width = Component(Signal, value=4)
+        height = Component(Signal, value=3)
+        ndims = Component(Signal, value=2)
+        shaped_image = Component(NDDerivedSignal, 'flat_image',
+                                 shape=('width', 'height'),
+                                 num_dimensions='ndims')
+
+
+    det = Detector(name='det')
+    det.shaped_image.get().shape == (4, 3)
+    cb = Mock()
+    det.shaped_image.subscribe(cb)
+    det.width.put(6)
+    det.height.put(2)
+    assert cb.called
+    assert det.shaped_image._readback.shape == (6, 2)

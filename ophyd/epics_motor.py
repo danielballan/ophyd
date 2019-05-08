@@ -6,7 +6,7 @@ from .signal import (EpicsSignal, EpicsSignalRO)
 from .utils import DisconnectedError
 from .utils.epics_pvs import (raise_if_disconnected, AlarmSeverity)
 from .positioner import PositionerBase
-from .device import (Device, Component as Cpt)
+from .device import (Device, Component as Cpt, required_for_connection)
 from .status import wait as status_wait
 from .EstTime import EpicsMotorEstTime
 from enum import Enum
@@ -43,7 +43,8 @@ class EpicsMotor(Device, PositionerBase):
     '''
 
     # position
-    user_readback = Cpt(EpicsSignalRO, '.RBV', kind='hinted')
+    user_readback = Cpt(EpicsSignalRO, '.RBV', kind='hinted',
+                        auto_monitor=True)
     user_setpoint = Cpt(EpicsSignal, '.VAL', limits=True)
     # calibration dial <-> user
     user_offset = Cpt(EpicsSignal, '.OFF', kind='config')
@@ -58,7 +59,8 @@ class EpicsMotor(Device, PositionerBase):
 
     # motor status
     motor_is_moving = Cpt(EpicsSignalRO, '.MOVN', kind='omitted')
-    motor_done_move = Cpt(EpicsSignalRO, '.DMOV', kind='omitted')
+    motor_done_move = Cpt(EpicsSignalRO, '.DMOV', kind='omitted',
+                          auto_monitor=True)
     high_limit_switch = Cpt(EpicsSignal, '.HLS', kind='omitted')
     low_limit_switch = Cpt(EpicsSignal, '.LLS', kind='omitted')
     direction_of_travel = Cpt(EpicsSignal, '.TDIR', kind='omitted')
@@ -71,24 +73,26 @@ class EpicsMotor(Device, PositionerBase):
     # alarm information
     tolerated_alarm = AlarmSeverity.NO_ALARM
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, prefix='', *, name, kind=None, read_attrs=None,
+                 configuration_attrs=None, parent=None, **kwargs):
+        super().__init__(prefix=prefix, name=name, kind=kind,
+                         read_attrs=read_attrs,
+                         configuration_attrs=configuration_attrs,
+                         parent=parent, **kwargs)
+
         # Make the default alias for the user_readback the name of the
         # motor itself.
         self.user_readback.name = self.name
-
         self.motor_done_move.subscribe(self._move_changed)
         self.user_readback.subscribe(self._pos_changed)
         self.est_time = EpicsMotorEstTime(self.name)
 
     @property
-    @raise_if_disconnected
     def precision(self):
         '''The precision of the readback PV, as reported by EPICS'''
         return self.user_readback.precision
 
     @property
-    @raise_if_disconnected
     def egu(self):
         '''The engineering units (EGU) for a position'''
         return self.motor_egu.get()
@@ -194,7 +198,7 @@ class EpicsMotor(Device, PositionerBase):
         direction = HomeEnum(direction)
 
         self._started_moving = False
-        position = (self.low_limit+self.high_limit)/2
+        position = (self.low_limit + self.high_limit) / 2
         status = super().move(position, **kwargs)
 
         if direction == HomeEnum.forward:
@@ -215,10 +219,14 @@ class EpicsMotor(Device, PositionerBase):
         '''Check that the position is within the soft limits'''
         self.user_setpoint.check_value(pos)
 
+    @required_for_connection
+    @user_readback.sub_value
     def _pos_changed(self, timestamp=None, value=None, **kwargs):
         '''Callback from EPICS, indicating a change in position'''
         self._set_position(value)
 
+    @required_for_connection
+    @motor_done_move.sub_value
     def _move_changed(self, timestamp=None, value=None, sub_type=None,
                       **kwargs):
         '''Callback from EPICS, indicating that movement status has changed'''
@@ -280,6 +288,6 @@ class EpicsMotor(Device, PositionerBase):
 class MotorBundle(Device):
     """Sub-class this to device a bundle of motors
 
-    This provides better default behavior for ``hints``.
+    This provides better default behavior for :ref:``hints``.
     """
     ...

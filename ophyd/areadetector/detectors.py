@@ -16,17 +16,19 @@ __all__ = ['DetectorBase',
            'Andor3Detector',
            'AndorDetector',
            'BrukerDetector',
+           'DexelaDetector',
            'FirewireLinDetector',
            'FirewireWinDetector',
+           'GreatEyesDetector',
            'LightFieldDetector',
            'Mar345Detector',
            'MarCCDDetector',
+           'PSLDetector',
            'PerkinElmerDetector',
            'PilatusDetector',
            'PixiradDetector',
            'PointGreyDetector',
            'ProsilicaDetector',
-           'PSLDetector',
            'PvcamDetector',
            'RoperDetector',
            'SimDetector',
@@ -106,7 +108,12 @@ class Andor3Detector(DetectorBase):
 
 class BrukerDetector(DetectorBase):
     _html_docs = ['BrukerDoc.html']
-    cam = C(cam.Andor3DetectorCam, 'cam1:')
+    cam = C(cam.BrukerDetectorCam, 'cam1:')
+
+
+class DexelaDetector(DetectorBase):
+    _html_docs = ['DexelaDoc.html']
+    cam = C(cam.DexelaDetectorCam, 'cam1:')
 
 
 class FirewireLinDetector(DetectorBase):
@@ -117,6 +124,11 @@ class FirewireLinDetector(DetectorBase):
 class FirewireWinDetector(DetectorBase):
     _html_docs = ['FirewireWinDoc.html']
     cam = C(cam.FirewireWinDetectorCam, 'cam1:')
+
+
+class GreatEyesDetector(DetectorBase):
+    _html_docs = []  # the documentation is not public
+    cam = C(cam.GreatEyesDetectorCam, 'cam1:')
 
 
 class LightFieldDetector(DetectorBase):
@@ -136,7 +148,7 @@ class MarCCDDetector(DetectorBase):
 
 class PerkinElmerDetector(DetectorBase):
     _html_docs = ['PerkinElmerDoc.html']
-    cam = C(cam.LightFieldDetectorCam, 'cam1:')
+    cam = C(cam.PerkinElmerDetectorCam, 'cam1:')
 
 
 class PSLDetector(DetectorBase):

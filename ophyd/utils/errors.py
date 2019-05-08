@@ -14,7 +14,12 @@ class LimitError(ValueError, OpException):
 
 
 class DisconnectedError(OpException):
-    '''Signal or SignalGroup is not connected to EPICS'''
+    '''Signal or Device is not connected to EPICS'''
+    pass
+
+
+class DestroyedError(RuntimeError, DisconnectedError):
+    '''Signal or Device has been destroyed and is no longer usable'''
     pass
 
 
@@ -27,3 +32,12 @@ class ExceptionBundle(RuntimeError, OpException):
 
 class RedundantStaging(OpException):
     pass
+
+
+class PluginMisconfigurationError(TypeError, OpException):
+    # Keeping TypeError for backward-compatibility
+    pass
+
+
+class UnprimedPlugin(RuntimeError, OpException):
+    ...

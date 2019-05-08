@@ -1,126 +1,204 @@
 import atexit
-import ctypes
-import epics
-import queue
+import logging
 import threading
 import warnings
 
-from epics import get_pv as _get_pv, caget, caget, caput
+import epics
+from epics import caget, caput, ca, dbr  # noqa
+
+from ._dispatch import _CallbackThread, EventDispatcher, wrap_callback
 
 try:
-    epics.ca.find_libca()
-except epics.ca.ChannelAccessException:
-    thread_class = threading.Thread
+    ca.find_libca()
+except ca.ChannelAccessException:
+    raise ImportError('libca not found; pyepics is unavailable')
 else:
-    thread_class = epics.ca.CAThread
+    thread_class = ca.CAThread
 
 
+module_logger = logging.getLogger(__name__)
+name = 'pyepics'
 _dispatcher = None
 
 
-def get_pv(*args, **kwargs):
-    import epics
-    kwargs.setdefault('context', epics.ca.current_context())
-    return _get_pv(*args, **kwargs)
+def get_dispatcher():
+    'The event dispatcher for the pyepics control layer'
+    return _dispatcher
 
 
-class MonitorDispatcher(epics.ca.CAThread):
-    '''A monitor dispatcher which works with pyepics
+class PyepicsCallbackThread(_CallbackThread):
+    def attach_context(self):
+        super().attach_context()
+        ca.attach_context(self.context)
 
-    The monitor dispatcher works around having callbacks from libca threads.
-    Using epics CA calls (caget, caput, etc.) from those callbacks is not
-    possible without this dispatcher workaround.
+    def detach_context(self):
+        super().detach_context()
+        ca.detach_context()
 
-    ... note::
 
-       Without `all_contexts` set, only the callbacks that are run with
-       the same context as the the main thread are affected.
+class PyepicsShimPV(epics.PV):
+    def __init__(self, pvname, callback=None, form='time', verbose=False,
+                 auto_monitor=None, count=None, connection_callback=None,
+                 connection_timeout=None, access_callback=None):
+        self._get_lock = threading.Lock()
+        self._ctrlvars_lock = threading.Lock()
+        self._timevars_lock = threading.Lock()
+        connection_callback = wrap_callback(_dispatcher, 'metadata',
+                                            connection_callback)
+        callback = wrap_callback(_dispatcher, 'monitor', callback)
+        access_callback = wrap_callback(_dispatcher, 'metadata',
+                                        access_callback)
 
-    ... note::
+        super().__init__(pvname, form=form, verbose=verbose,
+                         auto_monitor=auto_monitor, count=count,
+                         connection_timeout=connection_timeout,
+                         connection_callback=connection_callback,
+                         callback=callback, access_callback=access_callback)
 
-       Ensure that you call epics.ca.use_initial_context() at startup in
-       the main thread
+    def get_ctrlvars(self, timeout=5, warn=True):
+        "get control values for variable"
+        with self._ctrlvars_lock:
+            return super().get_ctrlvars(timeout=timeout, warn=warn)
+
+    def get_timevars(self, timeout=5, warn=True):
+        "get time values for variable"
+        with self._timevars_lock:
+            return super().get_timevars(timeout=timeout, warn=warn)
+
+    def _configure_auto_monitor(self):
+        if self._monref is not None:
+            return
+
+        # Not auto-monitoring; need to set up the internal monitor before
+        # subscriptions can be used
+        if not self.auto_monitor:
+            self.auto_monitor = ca.DEFAULT_SUBSCRIPTION_MASK
+
+        if self.connected:
+            self.force_connect(pvname=self.pvname, chid=self.chid, conn=True)
+
+    def add_callback(self, callback=None, index=None, run_now=False,
+                     with_ctrlvars=True, **kw):
+        self._configure_auto_monitor()
+        callback = wrap_callback(_dispatcher, 'monitor', callback)
+        return super().add_callback(callback=callback, index=index,
+                                    run_now=run_now,
+                                    with_ctrlvars=with_ctrlvars, **kw)
+
+    def get_with_metadata(self, count=None, as_string=False, as_numpy=True,
+                          timeout=None, with_ctrlvars=False, form=None,
+                          use_monitor=True):
+        with self._get_lock:
+            return super().get_with_metadata(
+                count=count, as_string=as_string, as_numpy=as_numpy,
+                timeout=timeout, with_ctrlvars=with_ctrlvars, form=form,
+                use_monitor=use_monitor)
+
+    def put(self, value, wait=False, timeout=30.0, use_complete=False,
+            callback=None, callback_data=None):
+        callback = wrap_callback(_dispatcher, 'get_put', callback)
+        return super().put(value, wait=wait, timeout=timeout,
+                           use_complete=use_complete, callback=callback,
+                           callback_data=callback_data)
+
+    def _getarg(self, arg):
+        "wrapper for property retrieval"
+        if self._args[arg] is None:
+            if arg in ('status', 'severity', 'timestamp', 'posixseconds',
+                       'nanoseconds'):
+                self.get_timevars(timeout=1, warn=False)
+            else:
+                self.get_ctrlvars(timeout=1, warn=False)
+        return self._args.get(arg, None)
+
+    def get_all_metadata_blocking(self, timeout):
+        if self._args['status'] is None:
+            self.get_timevars(timeout=timeout)
+        self.get_ctrlvars(timeout=timeout)
+        md = self._args.copy()
+        md.pop('value', None)
+        return md
+
+    def get_all_metadata_callback(self, callback, *, timeout):
+        def get_metadata_thread(pvname):
+            md = self.get_all_metadata_blocking(timeout=timeout)
+            callback(pvname, md)
+
+        _dispatcher.schedule_utility_task(get_metadata_thread,
+                                          pvname=self.pvname)
+
+    def clear_callbacks(self):
+        super().clear_callbacks()
+        self.access_callbacks.clear()
+        self.connection_callbacks.clear()
+
+
+def release_pvs(*pvs):
+    # Run _release_pvs in the 'monitor' thread, assuring that the CA context is correct
+    def _release_pvs():
+        for pv in pvs:
+            pv.clear_callbacks()
+            pv.clear_auto_monitor()
+        event.set()
+
+    event = threading.Event()
+    _dispatcher.get_thread_context('monitor').run(_release_pvs)
+    event.wait()
+
+
+def get_pv(pvname, form='time', connect=False, context=None, timeout=5.0,
+           connection_callback=None, access_callback=None, callback=None,
+           **kwargs):
+    """Get a PV from PV cache or create one if needed.
 
     Parameters
-    ----------
-    all_contexts : bool, optional
-        re-route _all_ callbacks from _any_ context to the dispatcher callback
-        thread
+    ---------
+    form : str, optional
+        PV form: one of 'native' (default), 'time', 'ctrl'
+    connect : bool, optional
+        whether to wait for connection (default False)
+    context : int, optional
+        PV threading context (defaults to current context)
     timeout : float, optional
-    callback_logger : logging.Logger, optional
-        A logger to notify about failed callbacks
+        connection timeout, in seconds (default 5.0)
+    """
+    if form not in ('native', 'time', 'ctrl'):
+        form = 'native'
 
-    Attributes
-    ----------
-    main_context : ctypes long
-        The main CA context
-    callback_logger : logging.Logger
-        A logger to notify about failed callbacks
-    queue : Queue
-        The event queue
-    '''
+    if context is None:
+        context = ca.current_context()
 
-    def __init__(self, all_contexts=False, timeout=0.1,
-                 callback_logger=None):
-        epics.ca.CAThread.__init__(self, name='monitor_dispatcher')
+    thispv = None
 
-        self.daemon = True
-        self.queue = queue.Queue()
+    # TODO: this needs some work.
+    # thispv = epics.pv._PVcache_.get((pvname, form, context))
+    # if thispv is not None:
+    #     if callback is not None:
+    #         # wrapping is taken care of by `add_callback`
+    #         thispv.add_callback(callback)
+    #     if access_callback is not None:
+    #         access_callback = wrap_callback(_dispatcher, 'metadata',
+    #                                         access_callback)
+    #         thispv.access_callbacks.append(access_callback)
+    #     if connection_callback is not None:
+    #         connection_callback = wrap_callback(_dispatcher, 'metadata',
+    #                                             connection_callback)
+    #         thispv.connection_callbacks.append(connection_callback)
+    #     if thispv.connected:
+    #         if connection_callback:
+    #             thispv.force_connect()
+    #         if access_callback:
+    #             thispv.force_read_access_rights()
 
-        # The dispatcher thread will stop if this event is set
-        self._stop_event = threading.Event()
-        self.main_context = epics.ca.current_context()
-        self.callback_logger = callback_logger
+    if thispv is None:
+        thispv = PyepicsShimPV(pvname, form=form, callback=callback,
+                               connection_callback=connection_callback,
+                               access_callback=access_callback, **kwargs)
 
-        self._all_contexts = bool(all_contexts)
-        self._timeout = timeout
-
-        self.start()
-
-    def run(self):
-        '''The dispatcher itself'''
-        self._setup_pyepics(True)
-
-        while not self._stop_event.is_set():
-            try:
-                callback, args, kwargs = self.queue.get(True, self._timeout)
-            except queue.Empty:
-                pass
-            else:
-                try:
-                    callback(*args, **kwargs)
-                except Exception as ex:
-                    if self.callback_logger is not None:
-                        self.callback_logger.error(ex, exc_info=ex)
-
-        self._setup_pyepics(False)
-        epics.ca.detach_context()
-
-    def stop(self):
-        '''Stop the dispatcher thread and re-enable normal callbacks'''
-        self._stop_event.set()
-
-    def _setup_pyepics(self, enable):
-        # Re-route monitor events to our new handler
-        if enable:
-            fcn = self._monitor_event
-        else:
-            fcn = epics.ca._onMonitorEvent
-
-        epics.ca._CB_EVENT = (
-            ctypes.CFUNCTYPE(None, epics.dbr.event_handler_args)(fcn))
-
-    def _monitor_event(self, args):
-        if (self._all_contexts or
-                self.main_context == epics.ca.current_context()):
-            if callable(args.usr):
-                if (not hasattr(args.usr, '_disp_tag') or
-                        args.usr._disp_tag is not self):
-                    args.usr = lambda orig_cb=args.usr, **kwargs: \
-                        self.queue.put((orig_cb, [], kwargs))
-                    args.usr._disp_tag = self
-
-        return epics.ca._onMonitorEvent(args)
+    if connect:
+        if not thispv.wait_for_connection(timeout=timeout):
+            ca.write('cannot connect to %s' % pvname)
+    return thispv
 
 
 def setup(logger):
@@ -128,14 +206,7 @@ def setup(logger):
 
     Must be called once per session using ophyd
     '''
-    try:
-        epics.ca.find_libca()
-        # if we can not find libca, then we clearly are not
-        # going to be using CA threads so no need to install
-        # the trampoline
-    except epics.ca.ChannelAccessException:
-        return
-    # It's important to use the same context in the callback dispatcher
+    # It's important to use the same context in the callback _dispatcher
     # as the main thread, otherwise not-so-savvy users will be very
     # confused
     global _dispatcher
@@ -144,43 +215,36 @@ def setup(logger):
         logger.debug('ophyd already setup')
         return
 
+    epics._get_pv = epics.get_pv
+    epics.get_pv = get_pv
+    epics.pv.get_pv = get_pv
+
     def _cleanup():
         '''Clean up the ophyd session'''
         global _dispatcher
         if _dispatcher is None:
             return
+        epics.get_pv = epics._get_pv
+        epics.pv.get_pv = epics._get_pv
 
         logger.debug('Performing ophyd cleanup')
         if _dispatcher.is_alive():
             logger.debug('Joining the dispatcher thread')
             _dispatcher.stop()
-            _dispatcher.join()
 
         _dispatcher = None
 
-        logger.debug('Finalizing libca')
-        epics.ca.finalize_libca()
-
-    epics.ca.use_initial_context()
-
-    logger.debug('Installing monitor dispatcher')
-    _dispatcher = MonitorDispatcher()
+    logger.debug('Installing event dispatcher')
+    _dispatcher = EventDispatcher(thread_class=PyepicsCallbackThread,
+                                  context=ca.current_context(), logger=logger)
     atexit.register(_cleanup)
     return _dispatcher
 
 
-def get_pv_form(version):
-    '''Get the PV form that should be used for pyepics
+def _check_pyepics_version(version):
+    '''Verify compatibility with the pyepics version installed
 
-    Due to a bug in certain versions of PyEpics, form='time' cannot be used
-    with some large arrays.
-
-    native: gives time.time() timestamps from this machine
-    time: gives timestamps from the PVs themselves
-
-    Returns
-    -------
-    {'native', 'time'}
+    For proper functionality, ophyd requires pyepics >= 3.3.2
     '''
     def _fix_git_versioning(in_str):
         return in_str.replace('-g', '+g')
@@ -204,20 +268,18 @@ def get_pv_form(version):
     except ImportError:
         parse_version = _naive_parse_version
 
-    version = parse_version(_fix_git_versioning(version))
+    try:
+        version = parse_version(_fix_git_versioning(version))
+    except Exception:
+        version = None
 
     if version is None:
-        warnings.warn('Unrecognized PyEpics version; using local timestamps',
-                      ImportWarning)
-        return 'native'
-
-    elif version <= parse_version('3.2.3'):
-        warnings.warn('PyEpics versions <= 3.2.3 will use local timestamps (version: %s)' %
-                      epics.__version__,
-                      ImportWarning)
-        return 'native'
-    else:
-        return 'time'
+        warnings.warn('Unrecognized PyEpics version; assuming it is '
+                      'compatible', ImportWarning)
+    elif version < parse_version('3.3.2'):
+        raise RuntimeError(f'The installed version of pyepics={version} is not'
+                           f'compatible with ophyd.  Please upgrade to the '
+                           f'latest version.')
 
 
-pv_form = get_pv_form(epics.__version__)
+_check_pyepics_version(getattr(epics, '__version__', None))
