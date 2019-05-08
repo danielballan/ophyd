@@ -1465,7 +1465,7 @@ class Device(BlueskyInterface, OphydObject):
             kind &= ~self._remove_kind
 
         def __contains__(self, value):
-            return getattr(self._parent, value).kind & self._kind
+            return value in self.__internal_list()
 
         def __iter__(self):
             yield from self.__internal_list()
