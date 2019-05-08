@@ -85,7 +85,7 @@ Bug Fixes
   ``read_attrs`` or ``configuration_attrs``.
 
 v1.2.0 (2018-06-06)
-====================
+===================
 
 Features
 --------
@@ -122,8 +122,8 @@ Features
 * Added ``make_fake_device`` factory function that makes a Device out of
   ``FakeEpicsSignal`` based on a Device that has real signals.
 * Add ``sum_all`` component to QuadEM.
-* Add ``set`` method to the ROI plugin.
-* Validate that a device or Signal's ``name`` is a string, and raise helpfully
+* Add a ``set`` method to the ROI plugin.
+* Validate that a Device or Signal's ``name`` is a string, and raise helpfully
   if it is not.
 
 Bug Fixes
