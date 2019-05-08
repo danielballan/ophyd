@@ -1279,9 +1279,9 @@ def hw(save_path=None):
                  jittery_motor2]:
         axis.est_time = EpicsMotorEstTime(axis.name)
         axis.velocity = SynAxisNoHints(name='velocity')
-        axis.velocity.set(1)
+        axis.velocity.put(1)
         axis.settle_time = SynAxisNoHints(name='settle_time')
-        axis.settle_time.set(0)
+        axis.settle_time.put(0)
 
     noisy_det = SynGauss('noisy_det', motor, 'motor', center=0, Imax=1,
                          noise='uniform', sigma=1, noise_multiplier=0.1,
@@ -1305,15 +1305,15 @@ def hw(save_path=None):
     for detector in [noisy_det, det, identical_det, det1, det2, det3, det4,
                      det5]:
         detector.acquire_time = SynAxisNoHints(name='acquire_time')
-        detector.acquire_time.set(1)
+        detector.acquire_time.put(1)
         detector.acquire_period = SynAxisNoHints(name='acquire_period')
-        detector.acquire_period.set(1)
+        detector.acquire_period.put(1)
         detector.num_images = SynAxisNoHints(name='num_images')
-        detector.num_images.set(1)
+        detector.num_images.put(1)
         detector.trigger_mode = SynAxisNoHints(name='trigger_mode')
-        detector.trigger_mode.set(1)
+        detector.trigger_mode.put(1)
         detector.settle_time = SynAxisNoHints(name='settle_time')
-        detector.settle_time.set(0)
+        detector.settle_time.put(0)
 
     flyer1 = MockFlyer('flyer1', det, motor, 1, 5, 20)
     flyer2 = MockFlyer('flyer2', det, motor, 1, 5, 10)
